@@ -1,7 +1,7 @@
 import TrueFalseTemplate from "../../components/Quiz/TruefalseTemplate";
 import MultipleChoiceTemplate from '../../components/Quiz/MultipleChoiceTemplate';
 import MoreLessTemplate from '../../components/Quiz/MoreLessTemplate';
-import QuizEngine from "../../components/QuizEngine";
+import QuizEngine from "../../components/Quiz/QuizEngine";
 
 
 interface Props {
