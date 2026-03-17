@@ -1,15 +1,11 @@
-// app/quiz/[templateId]/page.tsx
 import QuizEngine from "../../components/Quiz/QuizEngine";
 
-// This is a server component by default
 interface PageProps {
-  params: { templateId?: string }; // templateId may be optional
+  params: { templateId: string };
 }
 
-export default function QuizPage({ params }: PageProps) {
-  // ✅ Safely unwrap the templateId
-  const templateId = params.templateId ? parseInt(params.templateId, 10) : undefined;
+export default function QuizTemplatePage({ params }: PageProps) {
+  const templateId = parseInt(params.templateId, 10);
 
-  // Pass to client component
   return <QuizEngine templateId={templateId} />;
 }
