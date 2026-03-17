@@ -1,20 +1,15 @@
-import TrueFalseTemplate from "../../components/Quiz/TruefalseTemplate";
-import MultipleChoiceTemplate from '../../components/Quiz/MultipleChoiceTemplate';
-import MoreLessTemplate from '../../components/Quiz/MoreLessTemplate';
+// app/quiz/[templateId]/page.tsx
 import QuizEngine from "../../components/Quiz/QuizEngine";
 
-
-interface Props {
-  params: { templateId: string };
+// This is a server component by default
+interface PageProps {
+  params: { templateId?: string }; // templateId may be optional
 }
 
-export default async function QuizPage({ params }: Props) {
-    const resolvedParams = await params;
-    const templateId = parseInt(resolvedParams.templateId);
-  
-    return (
-        <div className="p-8">
-            <QuizEngine templateId={templateId} />
-        </div>
-    );
+export default function QuizPage({ params }: PageProps) {
+  // ✅ Safely unwrap the templateId
+  const templateId = params.templateId ? parseInt(params.templateId, 10) : undefined;
+
+  // Pass to client component
+  return <QuizEngine templateId={templateId} />;
 }

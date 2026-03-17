@@ -10,11 +10,17 @@ export interface Question {
   id: number;
   questionText: string;
   templateTypeId: number;
-  mediaType: string;
-  mediaUrl: string;
+  mediaType: string | null;
+  mediaUrl: string | null;
   answers: Answer[];
 }
 
-export async function getQuiz(templateId: number): Promise<Question[]> {
-  return apiFetch(`/quiz/${templateId}`);
+/**
+ * Fetch quiz questions from API
+ * @param templateId optional template id
+ * @returns array of questions
+ */
+export async function getQuiz(templateId?: number): Promise<Question[]> {
+  const url = templateId ? `/quiz?templateId=${templateId}` : `/quiz`;
+  return apiFetch(url);
 }

@@ -1,3 +1,4 @@
+// app/components/Quiz/QuizEngine.tsx
 "use client";
 
 import { useEffect, useState } from "react";
@@ -7,7 +8,7 @@ import ProgressBar from "./ProgressBar";
 import ScoreBoard from "./Scoreboard";
 
 interface Props {
-  templateId: number;
+  templateId?: number; // now optional
 }
 
 export default function QuizEngine({ templateId }: Props) {
@@ -25,17 +26,26 @@ export default function QuizEngine({ templateId }: Props) {
     loadQuiz();
   }, [templateId]);
 
-  // Timer per question
+  const moveNext = (correct: boolean) => {
+    if (correct) setScore(prev => prev + 1);
+
+    if (currentIndex + 1 < questions.length) {
+      setCurrentIndex(prev => prev + 1);
+      setTimeLeft(10); // reset timer for next question
+    } else {
+      setShowResult(true);
+    }
+  };
+
+  // Timer logic
   useEffect(() => {
     if (showResult || questions.length === 0) return;
-
-    setTimeLeft(10); // reset timer for new question
 
     const interval = setInterval(() => {
       setTimeLeft(prev => {
         if (prev <= 1) {
           clearInterval(interval);
-          moveNext(false); // auto move next if time runs out
+          moveNext(false);
           return 0;
         }
         return prev - 1;
@@ -45,31 +55,15 @@ export default function QuizEngine({ templateId }: Props) {
     return () => clearInterval(interval);
   }, [currentIndex, questions, showResult]);
 
-  const moveNext = (correct: boolean) => {
-    if (correct) setScore(prev => prev + 1);
-
-    if (currentIndex + 1 < questions.length) {
-      setCurrentIndex(prev => prev + 1);
-    } else {
-      setShowResult(true);
-    }
-  };
-
   if (questions.length === 0) return <p className="text-center mt-8">Loading quiz...</p>;
 
   return (
     <div className="max-w-xl mx-auto flex flex-col items-center space-y-6 mt-8">
-
       <ScoreBoard score={score} />
       <ProgressBar current={currentIndex + 1} total={questions.length} />
 
-      <div className="text-center font-bold text-lg">
-        Time left: {timeLeft}s
-      </div>
-
-      <div className="text-sm text-gray-500">
-        Question {currentIndex + 1} / {questions.length}
-      </div>
+      <div className="text-center font-bold text-lg">Time left: {timeLeft}s</div>
+      <div className="text-sm text-gray-500">Question {currentIndex + 1} / {questions.length}</div>
 
       {showResult ? (
         <div className="text-center text-xl font-bold mt-8">
