@@ -1,18 +1,28 @@
-import Link from "next/link";
+import { supabase } from '../lib/supabaseClient'
 
-export default function Home() {
+export default async function QuizPage({ params }: { params: { id: string } }) {
+const { data: questions, error } = await supabase
+  .from('questions')
+  .select(`
+  id, question_text, question_type, points,
+  media_type, image_url, youtube_url,
+  true_false_answers ( correct_answer ),
+  more_less_answers ( reference_value, correct_answer, unit ),
+  multiple_choice_options ( id, option_text, is_correct, sort_order )
+  `)
+  .eq('quiz_id', Number(params.id))
+  .order('sort_order', { ascending: true })
+
+  if (error) return <p>Fout: {error.message}</p>
+
   return (
-    <div className="flex min-h-screen items-center justify-center bg-gray-50">
-      <div className="flex flex-col items-center text-center gap-9">
-        <h1 className="text-[12rem] font-bold text-gray-900 leading-none">Quiz Platform</h1>
-        <p className="text-[4.5rem] text-gray-600">Test jouw kennis met onze interactieve quiz</p>
-        <Link
-          href="/quiz/1"
-          className="btn-quiz px-36 py-16 text-[5.5rem]"
-        >
-          Start Quiz
-        </Link>
-      </div>
+    <div>
+      {questions.map(q => (
+        <div key={q.id}>
+          <p>{q.question_text}</p>
+          {/* Render per question_type het juiste component */}
+        </div>
+      ))}
     </div>
-  );
+  )
 }
