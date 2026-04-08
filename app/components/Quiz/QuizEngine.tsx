@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { getAllQuestions, Question } from "../../services/quizService";
+import { Question } from "../../services/quizService";
 import QuestionRenderer from "./QuestionRenderer";
 import ProgressBar from "./ProgressBar";
 import ScoreBoard from "./Scoreboard";
@@ -14,47 +14,38 @@ interface GivenAnswer {
   correct: boolean;
 }
 
-export default function QuizEngine() {
-  const [questions, setQuestions] = useState<Question[]>([]);
+interface Props {
+  initialQuestions: Question[];
+}
+
+export default function QuizEngine({ initialQuestions }: Props) {
+  const [questions] = useState<Question[]>(initialQuestions);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [score, setScore] = useState(0);
   const [timeLeft, setTimeLeft] = useState(TIMER_SECONDS);
   const [givenAnswers, setGivenAnswers] = useState<Record<number, GivenAnswer>>({});
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
 
-  // Vragen laden bij opstarten
-  useEffect(() => {
-    getAllQuestions()
-      .then((data) => setQuestions(data))
-      .catch(() =>
-        setError("Kon de vragen niet laden. Controleer of de API actief is op https://localhost:5001/api")
-      )
-      .finally(() => setLoading(false));
-  }, []);
-
-  // Timer: reset bij elke vraagwissel
+  // Timer: reset on question change
   useEffect(() => {
     setTimeLeft(TIMER_SECONDS);
   }, [currentIndex]);
 
-  // Timer: aftellen en automatisch doorspringen
+  // Timer: countdown and auto-advance
   useEffect(() => {
-    if (loading || questions.length === 0) return;
-    if (givenAnswers[currentIndex] !== undefined) return; // Vraag al beantwoord, timer pauzeert
+    if (questions.length === 0) return;
+    if (givenAnswers[currentIndex] !== undefined) return;
 
     if (timeLeft <= 0) {
-      // Tijd op: automatisch naar volgende vraag
       setCurrentIndex((i) => i + 1);
       return;
     }
 
     const id = setTimeout(() => setTimeLeft((t) => t - 1), 1000);
     return () => clearTimeout(id);
-  }, [timeLeft, loading, questions.length, currentIndex, givenAnswers]);
+  }, [timeLeft, questions.length, currentIndex, givenAnswers]);
 
   const handleAnswer = (correct: boolean, answerId: number) => {
-    if (givenAnswers[currentIndex] !== undefined) return; // Dubbele klik voorkomen
+    if (givenAnswers[currentIndex] !== undefined) return;
 
     setGivenAnswers((prev) => ({
       ...prev,
@@ -63,19 +54,13 @@ export default function QuizEngine() {
 
     if (correct) setScore((s) => s + 1);
 
-    // Na 1 seconde (feedback tonen) automatisch doorspringen
     setTimeout(() => {
       setCurrentIndex((i) => i + 1);
     }, 1000);
   };
 
-  const goToPrevious = () => {
-    setCurrentIndex((i) => Math.max(0, i - 1));
-  };
-
-  const goToNext = () => {
-    setCurrentIndex((i) => Math.min(questions.length - 1, i + 1));
-  };
+  const goToPrevious = () => setCurrentIndex((i) => Math.max(0, i - 1));
+  const goToNext = () => setCurrentIndex((i) => Math.min(questions.length - 1, i + 1));
 
   const restartQuiz = () => {
     setCurrentIndex(0);
@@ -84,34 +69,15 @@ export default function QuizEngine() {
     setTimeLeft(TIMER_SECONDS);
   };
 
-  // Laadscherm
-  if (loading) {
-    return (
-      <div className="text-center mt-16 text-gray-600 text-lg">
-        Vragen laden...
-      </div>
-    );
-  }
-
-  // Foutmelding
-  if (error) {
-    return (
-      <div className="max-w-xl mx-auto mt-16 text-center">
-        <p className="text-red-500 font-semibold">{error}</p>
-      </div>
-    );
-  }
-
-  // Geen vragen
   if (questions.length === 0) {
     return (
       <div className="text-center mt-16 text-gray-600">
-        Geen vragen gevonden.
+        Geen vragen gevonden voor deze quiz.
       </div>
     );
   }
 
-  // Eindscherm (currentIndex heeft de grens bereikt)
+  // End screen
   if (currentIndex >= questions.length) {
     return (
       <div className="max-w-xl mx-auto mt-16 text-center space-y-6">
@@ -146,41 +112,28 @@ export default function QuizEngine() {
 
   return (
     <div className="max-w-xl mx-auto space-y-4">
-      {/* Bovenste balk: score en timer */}
       <div className="flex justify-between items-center">
         <ScoreBoard score={score} />
-        <div
-          className={`text-lg font-bold tabular-nums ${
-            isTimerLow ? "text-red-500" : "text-gray-700"
-          }`}
-        >
+        <div className={`text-lg font-bold tabular-nums ${isTimerLow ? "text-red-500" : "text-gray-700"}`}>
           {isAnswered ? "✓" : `${timeLeft}s`}
         </div>
       </div>
 
-      {/* Timer balk */}
       <div className="w-full bg-gray-200 rounded-full h-2 overflow-hidden">
         <div
           className={`h-2 rounded-full transition-all duration-1000 ${
-            isAnswered
-              ? "bg-green-500"
-              : isTimerLow
-              ? "bg-red-500"
-              : "bg-blue-500"
+            isAnswered ? "bg-green-500" : isTimerLow ? "bg-red-500" : "bg-blue-500"
           }`}
           style={{ width: `${isAnswered ? 100 : timerPercent}%` }}
         />
       </div>
 
-      {/* Voortgangsbalk */}
       <ProgressBar current={currentIndex + 1} total={questions.length} />
 
-      {/* Vraagnummer */}
       <p className="text-sm text-gray-500 text-center">
         Vraag {currentIndex + 1} van {questions.length}
       </p>
 
-      {/* Vraagkaart */}
       <QuestionCard>
         <QuestionRenderer
           key={currentIndex}
@@ -190,7 +143,6 @@ export default function QuizEngine() {
         />
       </QuestionCard>
 
-      {/* Vorige / Volgende knoppen */}
       <div className="flex justify-between gap-4 mt-2">
         <button
           onClick={goToPrevious}

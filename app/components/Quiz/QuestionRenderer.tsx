@@ -16,17 +16,17 @@ interface Props {
   givenAnswer: GivenAnswer | null;
 }
 
-export default function QuestionRenderer({ question, onAnswer, givenAnswer }: Props) {
-  const templates: Record<number, React.ComponentType<Props>> = {
-    1: TrueFalseTemplate,
-    2: MultipleChoiceTemplate,
-    3: MoreLessTemplate,
-  };
+const templates: Record<string, React.ComponentType<Props>> = {
+  true_false: TrueFalseTemplate,
+  multiple_choice: MultipleChoiceTemplate,
+  more_less: MoreLessTemplate,
+};
 
-  const Template = templates[question.templateTypeId];
+export default function QuestionRenderer({ question, onAnswer, givenAnswer }: Props) {
+  const Template = templates[question.questionType];
 
   if (!Template) {
-    return <div className="text-center text-red-500">Onbekend vraagtype</div>;
+    return <div className="text-center text-red-500">Onbekend vraagtype: {question.questionType}</div>;
   }
 
   return <Template question={question} onAnswer={onAnswer} givenAnswer={givenAnswer} />;
