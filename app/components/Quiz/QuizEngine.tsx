@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Question } from "../../services/quizService";
 import QuestionRenderer from "./QuestionRenderer";
 import ProgressBar from "./ProgressBar";
@@ -24,16 +24,22 @@ export default function QuizEngine({ initialQuestions }: Props) {
   const [score, setScore] = useState(0);
   const [timeLeft, setTimeLeft] = useState(TIMER_SECONDS);
   const [givenAnswers, setGivenAnswers] = useState<Record<number, GivenAnswer>>({});
+  // true while a YouTube video is still playing — timer is held
+  const [timerHeld, setTimerHeld] = useState(
+    () => initialQuestions[0]?.mediaType === "youtube"
+  );
 
-  // Timer: reset on question change
+  // On question change: reset timer and hold it if the new question has a YouTube clip
   useEffect(() => {
     setTimeLeft(TIMER_SECONDS);
-  }, [currentIndex]);
+    setTimerHeld(questions[currentIndex]?.mediaType === "youtube");
+  }, [currentIndex, questions]);
 
-  // Timer: countdown and auto-advance
+  // Timer: countdown and auto-advance (paused while timerHeld or already answered)
   useEffect(() => {
     if (questions.length === 0) return;
     if (givenAnswers[currentIndex] !== undefined) return;
+    if (timerHeld) return;
 
     if (timeLeft <= 0) {
       setCurrentIndex((i) => i + 1);
@@ -42,7 +48,9 @@ export default function QuizEngine({ initialQuestions }: Props) {
 
     const id = setTimeout(() => setTimeLeft((t) => t - 1), 1000);
     return () => clearTimeout(id);
-  }, [timeLeft, questions.length, currentIndex, givenAnswers]);
+  }, [timeLeft, questions.length, currentIndex, givenAnswers, timerHeld]);
+
+  const handleVideoEnded = useCallback(() => setTimerHeld(false), []);
 
   const handleAnswer = (correct: boolean, answerId: number) => {
     if (givenAnswers[currentIndex] !== undefined) return;
@@ -77,7 +85,6 @@ export default function QuizEngine({ initialQuestions }: Props) {
     );
   }
 
-  // End screen
   if (currentIndex >= questions.length) {
     return (
       <div className="max-w-xl mx-auto mt-16 text-center space-y-6">
@@ -114,17 +121,18 @@ export default function QuizEngine({ initialQuestions }: Props) {
     <div className="max-w-xl mx-auto space-y-4">
       <div className="flex justify-between items-center">
         <ScoreBoard score={score} />
-        <div className={`text-lg font-bold tabular-nums ${isTimerLow ? "text-red-500" : "text-gray-700"}`}>
-          {isAnswered ? "✓" : `${timeLeft}s`}
+        <div className={`text-lg font-bold tabular-nums ${isTimerLow && !timerHeld ? "text-red-500" : "text-gray-700"}`}>
+          {isAnswered ? "✓" : timerHeld ? "▶" : `${timeLeft}s`}
         </div>
       </div>
 
+      {/* Timer bar — frozen at full width while video plays */}
       <div className="w-full bg-gray-200 rounded-full h-2 overflow-hidden">
         <div
           className={`h-2 rounded-full transition-all duration-1000 ${
-            isAnswered ? "bg-green-500" : isTimerLow ? "bg-red-500" : "bg-blue-500"
+            isAnswered ? "bg-green-500" : timerHeld ? "bg-yellow-400" : isTimerLow ? "bg-red-500" : "bg-blue-500"
           }`}
-          style={{ width: `${isAnswered ? 100 : timerPercent}%` }}
+          style={{ width: `${isAnswered || timerHeld ? 100 : timerPercent}%` }}
         />
       </div>
 
@@ -140,6 +148,7 @@ export default function QuizEngine({ initialQuestions }: Props) {
           question={currentQuestion}
           onAnswer={handleAnswer}
           givenAnswer={givenAnswers[currentIndex] ?? null}
+          onVideoEnded={handleVideoEnded}
         />
       </QuestionCard>
 

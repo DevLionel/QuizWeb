@@ -2,15 +2,10 @@
 
 import { useState } from "react";
 import { Question } from "../../services/quizService";
-import { GivenAnswer } from "./QuestionRenderer";
+import { GivenAnswer, TemplateProps } from "./QuestionRenderer";
+import MediaRenderer from "./MediaRenderer";
 
-interface Props {
-  question: Question;
-  onAnswer: (correct: boolean, answerId: number) => void;
-  givenAnswer: GivenAnswer | null;
-}
-
-export default function TrueFalseTemplate({ question, onAnswer, givenAnswer }: Props) {
+export default function TrueFalseTemplate({ question, onAnswer, givenAnswer, onVideoEnded }: TemplateProps) {
   const [localSelected, setLocalSelected] = useState<number | null>(null);
 
   if (!question.answers || question.answers.length === 0) {
@@ -20,17 +15,19 @@ export default function TrueFalseTemplate({ question, onAnswer, givenAnswer }: P
   const handleClick = (answerId: number, correct: boolean) => {
     if (givenAnswer !== null || localSelected !== null) return;
     setLocalSelected(answerId);
-    setTimeout(() => {
-      onAnswer(correct, answerId);
-    }, 1000);
+    setTimeout(() => onAnswer(correct, answerId), 1000);
   };
 
-  // Welk antwoord wordt getoond: vergrendeld (givenAnswer) of net geklikt (localSelected)
   const activeAnswerId = givenAnswer?.answerId ?? localSelected;
   const isLocked = activeAnswerId !== null;
 
   return (
     <div className="flex flex-col gap-4 w-full">
+      <MediaRenderer
+        mediaType={question.mediaType}
+        mediaUrl={question.mediaUrl}
+        onVideoEnded={onVideoEnded}
+      />
       <p className="text-lg font-semibold text-center mb-2">{question.questionText}</p>
       {question.answers.map((a) => {
         let color = "bg-blue-600 hover:bg-blue-700";
