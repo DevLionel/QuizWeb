@@ -200,7 +200,7 @@ function EditForm({
         <button
           onClick={handleSave}
           disabled={isPending}
-          className="bg-blue-600 text-white px-4 py-2 rounded text-sm disabled:opacity-50"
+          className="bg-blue-600 dark:bg-blue-500 text-white dark:text-gray-900 px-4 py-2 rounded text-sm disabled:opacity-50"
         >
           {isPending ? 'Opslaan...' : 'Opslaan'}
         </button>

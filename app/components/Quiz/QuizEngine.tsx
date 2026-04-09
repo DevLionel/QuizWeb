@@ -130,7 +130,7 @@ export default function QuizEngine({ initialQuestions }: Props) {
       <div className="w-full bg-gray-200 rounded-full h-2 overflow-hidden">
         <div
           className={`h-2 rounded-full transition-all duration-1000 ${
-            isAnswered ? "bg-green-500" : timerHeld ? "bg-yellow-400" : isTimerLow ? "bg-red-500" : "bg-blue-500"
+            isAnswered ? "bg-green-500" : timerHeld ? "bg-yellow-400" : isTimerLow ? "bg-red-500" : "bg-green-600 dark:bg-green-700"
           }`}
           style={{ width: `${isAnswered || timerHeld ? 100 : timerPercent}%` }}
         />
@@ -163,7 +163,7 @@ export default function QuizEngine({ initialQuestions }: Props) {
         <button
           onClick={goToNext}
           disabled={currentIndex === questions.length - 1}
-          className="flex-1 px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-semibold transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+          className="flex-1 px-6 py-3 bg-green-600 hover:bg-green-700 dark:bg-green-700 dark:hover:bg-green-600 text-white rounded-xl font-semibold transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
         >
           Volgende →
         </button>

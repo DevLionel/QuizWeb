@@ -20,9 +20,9 @@ export default async function QuizPage({
   const questions = await getAllQuestionsForQuiz(quizId)
 
   return (
-    <div className="min-h-screen bg-gray-50 py-10 px-4">
+    <div className="min-h-screen py-10 px-4">
       <div className="max-w-xl mx-auto mb-6 flex items-center justify-between">
-        <Link href="/" className="text-sm text-blue-600 hover:underline">
+        <Link href="/" className="text-sm text-blue-600 dark:text-blue-300 hover:underline">
           ← Terug naar overzicht
         </Link>
         {quiz && <span className="text-sm font-medium text-gray-600">{quiz.title}</span>}

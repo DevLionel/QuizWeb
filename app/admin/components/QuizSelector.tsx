@@ -91,7 +91,7 @@ export default function QuizSelector({
           <button
             type="submit"
             disabled={isPending}
-            className="bg-blue-600 text-white px-5 py-2 rounded text-sm disabled:opacity-50"
+            className="bg-blue-600 dark:bg-blue-500 text-white dark:text-gray-900 px-5 py-2 rounded text-sm disabled:opacity-50"
           >
             {isPending ? 'Creating…' : 'Create'}
           </button>

@@ -94,8 +94,8 @@ function MediaFields({
   }
 
   const btnBase = 'flex items-center gap-2 px-4 py-2 rounded-lg border text-sm font-medium transition-colors'
-  const active = 'bg-blue-600 text-white border-blue-600'
-  const inactive = 'bg-white text-gray-600 border-gray-300 hover:border-blue-400'
+  const active = 'bg-blue-600 dark:bg-blue-500 text-white dark:text-gray-900 border-blue-600 dark:border-blue-500'
+  const inactive = 'bg-white text-gray-600 border-gray-300 hover:border-blue-400 dark:hover:border-blue-400'
 
   const placeholders: Record<MediaType, string> = {
     youtube: 'https://www.youtube.com/watch?v=…',
@@ -184,7 +184,7 @@ function MultipleChoiceFields({ options, onChange }: { options: MCOption[]; onCh
         </div>
       ))}
       <button type="button" onClick={() => onChange([...options, { text: '', isCorrect: false }])}
-        className="mt-3 text-sm text-blue-600 underline">
+        className="mt-3 text-sm text-blue-600 dark:text-blue-300 underline">
         + Optie toevoegen
       </button>
     </div>
@@ -319,7 +319,7 @@ export default function AddQuestionForm({ quizId }: { quizId: number }) {
       <MediaFields value={media} onChange={setMedia} />
 
       <button type="submit" disabled={isPending}
-        className="bg-blue-600 text-white px-6 py-2 rounded disabled:opacity-50">
+        className="bg-blue-600 dark:bg-blue-500 text-white dark:text-gray-900 px-6 py-2 rounded disabled:opacity-50">
         {isPending ? 'Opslaan...' : 'Vraag opslaan'}
       </button>
 

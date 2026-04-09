@@ -30,11 +30,11 @@ export default function TrueFalseTemplate({ question, onAnswer, givenAnswer, onV
       />
       <p className="text-lg font-semibold text-center mb-2">{question.questionText}</p>
       {question.answers.map((a) => {
-        let color = "bg-blue-600 hover:bg-blue-700";
+        let color = "bg-green-600 hover:bg-green-700 dark:bg-green-700 dark:hover:bg-green-600";
         if (isLocked) {
-          if (a.isCorrect) color = "bg-emerald-700";
-          else if (a.id === activeAnswerId) color = "bg-red-600";
-          else color = "bg-blue-600 opacity-50";
+          if (a.isCorrect) color = "bg-emerald-700 dark:bg-emerald-600";
+          else if (a.id === activeAnswerId) color = "bg-red-600 dark:bg-red-500";
+          else color = "bg-green-600 dark:bg-green-700 opacity-50";
         }
         return (
           <button
