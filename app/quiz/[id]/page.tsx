@@ -22,10 +22,10 @@ export default async function QuizPage({
   return (
     <div className="min-h-screen py-10 px-4">
       <div className="max-w-xl mx-auto mb-6 flex items-center justify-between">
-        <Link href="/" className="text-sm text-blue-600 dark:text-blue-300 hover:underline">
+        <Link href="/" className="text-2xl text-green-600 dark:text-green-600 hover:underline">
           ← Terug naar overzicht
         </Link>
-        {quiz && <span className="text-sm font-medium text-gray-600">{quiz.title}</span>}
+        {quiz && <span className="text-2xl font-medium text-green-600">{quiz.title}</span>}
       </div>
       <QuizEngine initialQuestions={questions} />
     </div>

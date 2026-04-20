@@ -88,8 +88,8 @@ export default function QuizEngine({ initialQuestions }: Props) {
   if (currentIndex >= questions.length) {
     return (
       <div className="max-w-xl mx-auto mt-16 text-center space-y-6">
-        <h2 className="text-3xl font-bold text-gray-900">Quiz afgerond!</h2>
-        <p className="text-xl text-gray-700">
+        <h2 className="text-3xl font-bold text-blue-600">Quiz afgerond!</h2>
+        <p className="text-xl text-blue-600">
           Jouw score:{" "}
           <span className="font-bold text-green-700">
             {score} / {questions.length}
@@ -121,7 +121,7 @@ export default function QuizEngine({ initialQuestions }: Props) {
     <div className="max-w-xl mx-auto space-y-4">
       <div className="flex justify-between items-center">
         <ScoreBoard score={score} />
-        <div className={`text-lg font-bold tabular-nums ${isTimerLow && !timerHeld ? "text-red-500" : "text-gray-700"}`}>
+        <div className={`text-lg font-bold tabular-nums ${isTimerLow && !timerHeld ? "text-red-500" : "text-gray-700 dark:text-white"}`}>
           {isAnswered ? "✓" : timerHeld ? "▶" : `${timeLeft}s`}
         </div>
       </div>
@@ -156,7 +156,7 @@ export default function QuizEngine({ initialQuestions }: Props) {
         <button
           onClick={goToPrevious}
           disabled={currentIndex === 0}
-          className="flex-1 px-6 py-3 bg-gray-200 hover:bg-gray-300 rounded-xl font-semibold transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+          className="flex-1 px-6 py-3 bg-gray-200 hover:bg-gray-300 dark:bg-white/10 dark:hover:bg-white/20 dark:text-white rounded-xl font-semibold transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
         >
           ← Vorige
         </button>

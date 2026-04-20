@@ -5,6 +5,7 @@ import {
   updateTrueFalseAnswer,
   updateMultipleChoiceOptions,
   updateMoreLessAnswer,
+  updateQuestionMedia,
   deleteQuestion,
 } from '../actions'
 
@@ -16,6 +17,9 @@ type Question = {
   id: number
   question_text: string
   question_type: string
+  media_type: string | null
+  image_url: string | null
+  youtube_url: string | null
   true_false_answers: TFAnswer[]
   multiple_choice_options: MCOption[]
   more_less_answers: MLAnswer[]
@@ -70,6 +74,14 @@ function EditForm({
 }) {
   const [text, setText] = useState(question.question_text)
 
+  // media state
+  const [mediaType, setMediaType] = useState<'none' | 'youtube' | 'image'>(
+    (question.media_type as 'youtube' | 'image') ?? 'none'
+  )
+  const [mediaUrl, setMediaUrl] = useState(
+    question.youtube_url ?? question.image_url ?? ''
+  )
+
   // true_false state
   const [tfCorrect, setTfCorrect] = useState(
     question.true_false_answers[0]?.correct_answer ?? true
@@ -100,6 +112,11 @@ function EditForm({
       } else if (question.question_type === 'more_less') {
         await updateMoreLessAnswer(question.id, Number(mlRef), mlAnswer, mlUnit)
       }
+      const media =
+        mediaType === 'none' || !mediaUrl.trim()
+          ? null
+          : { type: mediaType as 'youtube' | 'image', url: mediaUrl.trim() }
+      await updateQuestionMedia(question.id, media)
     })
   }
 
@@ -194,6 +211,33 @@ function EditForm({
           </label>
         </div>
       )}
+
+      {/* Media */}
+      <div className="space-y-2">
+        <span className="text-sm font-medium text-gray-700">Media (optioneel)</span>
+        <div className="flex gap-3 items-center">
+          <select
+            value={mediaType}
+            onChange={e => {
+              setMediaType(e.target.value as 'none' | 'youtube' | 'image')
+              setMediaUrl('')
+            }}
+            className="border rounded p-2 text-sm"
+          >
+            <option value="none">Geen</option>
+            <option value="youtube">YouTube</option>
+            <option value="image">Afbeelding</option>
+          </select>
+          {mediaType !== 'none' && (
+            <input
+              value={mediaUrl}
+              onChange={e => setMediaUrl(e.target.value)}
+              placeholder={mediaType === 'youtube' ? 'YouTube URL' : 'Afbeelding URL'}
+              className="flex-1 border rounded p-2 text-sm"
+            />
+          )}
+        </div>
+      </div>
 
       {/* Actions */}
       <div className="flex gap-3 pt-2">

@@ -55,7 +55,6 @@ export async function getAllQuestionsForQuiz(quizId: number): Promise<Question[]
       answers = [
         { id: q.id * 10 + 1, answerText: 'Meer', isCorrect: correct === 'more' },
         { id: q.id * 10 + 2, answerText: 'Minder', isCorrect: correct === 'less' },
-        { id: q.id * 10 + 3, answerText: 'Gelijk', isCorrect: correct === 'equal' },
       ]
     }
 

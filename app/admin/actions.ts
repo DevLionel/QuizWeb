@@ -162,6 +162,15 @@ export async function updateMoreLessAnswer(
   revalidatePath('/admin')
 }
 
+export async function updateQuestionMedia(questionId: number, media: Media) {
+  const { error } = await supabaseAdmin
+    .from('questions')
+    .update(mediaFields(media))
+    .eq('id', questionId)
+  if (error) throw new Error(error.message)
+  revalidatePath('/admin')
+}
+
 // ── DELETE ────────────────────────────────────────────────────────────────────
 
 export async function deleteQuestion(questionId: number) {
