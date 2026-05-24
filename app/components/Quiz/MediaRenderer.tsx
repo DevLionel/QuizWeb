@@ -53,7 +53,7 @@ export default function MediaRenderer({ mediaType, mediaUrl, onVideoEnded }: Pro
   const playerRef = useRef<any>(null);
 
   useEffect(() => {
-    if (mediaType !== "youtube" || !mediaUrl || !containerRef.current) return;
+    if ((mediaType !== "YouTubeClip" && mediaType !== "YouTubeShort") || !mediaUrl || !containerRef.current) return;
 
     const videoId = toVideoId(mediaUrl);
     if (!videoId) return;
@@ -84,7 +84,7 @@ export default function MediaRenderer({ mediaType, mediaUrl, onVideoEnded }: Pro
 
   if (!mediaType || !mediaUrl) return null;
 
-  if (mediaType === "youtube") {
+  if (mediaType === "YouTubeClip" || mediaType === "YouTubeShort") {
     return (
       <div className="w-full aspect-video rounded-xl overflow-hidden mb-4">
         <div ref={containerRef} className="w-full h-full" />
@@ -92,7 +92,7 @@ export default function MediaRenderer({ mediaType, mediaUrl, onVideoEnded }: Pro
     );
   }
 
-  if (mediaType === "image") {
+  if (mediaType === "Image") {
     return (
       <img
         src={mediaUrl}
@@ -102,13 +102,13 @@ export default function MediaRenderer({ mediaType, mediaUrl, onVideoEnded }: Pro
     );
   }
 
-  if (mediaType === "audio") {
+  if (mediaType === "Mp4") {
     return (
       <div className="w-full mb-4">
-        <audio controls className="w-full rounded-lg">
+        <video controls className="w-full rounded-lg">
           <source src={mediaUrl} />
-          Je browser ondersteunt geen audio.
-        </audio>
+          Je browser ondersteunt geen video.
+        </video>
       </div>
     );
   }

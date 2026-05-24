@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Question } from "../../services/quizService";
+import { Question } from "../../lib/types";
 import { GivenAnswer, TemplateProps } from "./QuestionRenderer";
 import MediaRenderer from "./MediaRenderer";
 

@@ -3,7 +3,7 @@
 import TrueFalseTemplate from "./TruefalseTemplate";
 import MultipleChoiceTemplate from "./MultipleChoiceTemplate";
 import MoreLessTemplate from "./MoreLessTemplate";
-import { Question } from "../../services/quizService";
+import { Question } from "../../lib/types";
 
 export interface GivenAnswer {
   answerId: number;
@@ -18,9 +18,10 @@ export interface TemplateProps {
 }
 
 const templates: Record<string, React.ComponentType<TemplateProps>> = {
-  true_false: TrueFalseTemplate,
-  multiple_choice: MultipleChoiceTemplate,
-  more_less: MoreLessTemplate,
+  TrueFalse: TrueFalseTemplate,
+  MultipleChoice: MultipleChoiceTemplate,
+  LessMore: MoreLessTemplate,
+  LowerHigher: MoreLessTemplate,
 };
 
 export default function QuestionRenderer({

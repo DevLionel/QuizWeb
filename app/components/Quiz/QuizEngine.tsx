@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { Question } from "../../services/quizService";
+import { Question } from "../../lib/types";
 import QuestionRenderer from "./QuestionRenderer";
 import ProgressBar from "./ProgressBar";
 import ScoreBoard from "./Scoreboard";
@@ -26,13 +26,13 @@ export default function QuizEngine({ initialQuestions }: Props) {
   const [givenAnswers, setGivenAnswers] = useState<Record<number, GivenAnswer>>({});
   // true while a YouTube video is still playing — timer is held
   const [timerHeld, setTimerHeld] = useState(
-    () => initialQuestions[0]?.mediaType === "youtube"
+    () => initialQuestions[0]?.mediaType === "YouTubeClip" || initialQuestions[0]?.mediaType === "YouTubeShort"
   );
 
   // On question change: reset timer and hold it if the new question has a YouTube clip
   useEffect(() => {
     setTimeLeft(TIMER_SECONDS);
-    setTimerHeld(questions[currentIndex]?.mediaType === "youtube");
+    setTimerHeld(questions[currentIndex]?.mediaType === "YouTubeClip" || questions[currentIndex]?.mediaType === "YouTubeShort");
   }, [currentIndex, questions]);
 
   // Timer: countdown and auto-advance (paused while timerHeld or already answered)

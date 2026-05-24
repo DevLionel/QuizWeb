@@ -1,185 +1,85 @@
 'use server'
-import { supabaseAdmin } from '../lib/supabaseAdmin'
 import { revalidatePath } from 'next/cache'
+import { apiPost, apiPut, apiDelete, uploadMedia } from '../lib/apiClient'
+import type {
+  CategoryResponse,
+  RoundResponse,
+  QuestionResponse,
+  CreateQuestionPayload,
+  CreateRoundPayload,
+} from '../lib/types'
 
-// ── READ ──────────────────────────────────────────────────────────────────────
+// ── Categories ────────────────────────────────────────────────────────────────
 
-export async function getAllQuestionsWithAnswers(quizId: number) {
-  const { data, error } = await supabaseAdmin
-    .from('questions')
-    .select(`
-      id, question_text, question_type, points, sort_order,
-      media_type, image_url, youtube_url,
-      true_false_answers ( id, correct_answer ),
-      multiple_choice_options ( id, option_text, is_correct, sort_order ),
-      more_less_answers ( id, correct_answer, reference_value, unit )
-    `)
-    .eq('quiz_id', quizId)
-    .order('sort_order', { ascending: true })
-
-  if (error) throw new Error(error.message)
-  return data ?? []
-}
-
-export async function getAllQuizzes() {
-  const { data, error } = await supabaseAdmin
-    .from('quizzes')
-    .select('id, title')
-    .order('id', { ascending: true })
-  if (error) throw new Error(error.message)
-  return data ?? []
-}
-
-export async function createQuiz(title: string): Promise<number> {
-  const { data, error } = await supabaseAdmin
-    .from('quizzes')
-    .insert([{ title: title.trim() }])
-    .select('id')
-    .single()
-  if (error || !data) throw new Error(error?.message)
+export async function createCategory(name: string): Promise<CategoryResponse> {
+  const result = await apiPost<CategoryResponse>('/api/Categories', { name: name.trim() })
   revalidatePath('/admin')
-  return data.id
+  return result
 }
 
-// ── CREATE ────────────────────────────────────────────────────────────────────
-
-type Media = { type: 'youtube' | 'image' | 'audio'; url: string } | null
-
-function mediaFields(media: Media) {
-  if (!media) return { media_type: null, image_url: null, youtube_url: null }
-  return {
-    media_type: media.type,
-    youtube_url: media.type === 'youtube' ? media.url : null,
-    // audio reuses image_url column (media_type distinguishes them)
-    image_url: media.type === 'image' || media.type === 'audio' ? media.url : null,
-  }
+export async function updateCategory(id: number, name: string): Promise<CategoryResponse> {
+  const result = await apiPut<CategoryResponse>(`/api/Categories/${id}`, { name: name.trim() })
+  revalidatePath('/admin')
+  return result
 }
 
-export async function addTrueFalseQuestion(
-  quizId: number,
-  questionText: string,
-  correctAnswer: boolean,
-  media: Media = null
-) {
-  const { data: question, error } = await supabaseAdmin
-    .from('questions')
-    .insert([{ quiz_id: quizId, question_text: questionText, question_type: 'true_false', ...mediaFields(media) }])
-    .select('id').single()
-  if (error || !question) throw new Error(error?.message)
-  await supabaseAdmin.from('true_false_answers')
-    .insert([{ question_id: question.id, correct_answer: correctAnswer }])
+export async function deleteCategory(id: number): Promise<void> {
+  await apiDelete(`/api/Categories/${id}`)
   revalidatePath('/admin')
 }
 
-export async function addMultipleChoiceQuestion(
-  quizId: number,
-  questionText: string,
-  options: { text: string; isCorrect: boolean }[],
-  media: Media = null
-) {
-  const { data: question, error } = await supabaseAdmin
-    .from('questions')
-    .insert([{ quiz_id: quizId, question_text: questionText, question_type: 'multiple_choice', ...mediaFields(media) }])
-    .select('id').single()
-  if (error || !question) throw new Error(error?.message)
-  const rows = options.map((opt, i) => ({
-    question_id: question.id,
-    option_text: opt.text,
-    is_correct: opt.isCorrect,
-    sort_order: i + 1,
-  }))
-  await supabaseAdmin.from('multiple_choice_options').insert(rows)
+// ── Rounds ────────────────────────────────────────────────────────────────────
+
+export async function createRound(data: CreateRoundPayload): Promise<RoundResponse> {
+  const result = await apiPost<RoundResponse>('/api/Rounds', data)
+  revalidatePath(`/admin/categories/${data.categoryId}`)
+  return result
+}
+
+export async function updateRound(
+  id: number,
+  data: CreateRoundPayload
+): Promise<RoundResponse> {
+  const result = await apiPut<RoundResponse>(`/api/Rounds/${id}`, data)
+  revalidatePath(`/admin/categories/${data.categoryId}`)
+  return result
+}
+
+export async function deleteRound(id: number, categoryId: number): Promise<void> {
+  await apiDelete(`/api/Rounds/${id}`)
+  revalidatePath(`/admin/categories/${categoryId}`)
+}
+
+// ── Questions ─────────────────────────────────────────────────────────────────
+
+export async function saveQuestion(
+  roundId: number,
+  payload: CreateQuestionPayload
+): Promise<QuestionResponse> {
+  const result = await apiPost<QuestionResponse>('/api/Questions', { ...payload, roundId })
+  revalidatePath('/admin')
+  return result
+}
+
+export async function updateQuestion(
+  id: number,
+  payload: CreateQuestionPayload
+): Promise<QuestionResponse> {
+  const result = await apiPut<QuestionResponse>(`/api/Questions/${id}`, payload)
+  revalidatePath('/admin')
+  return result
+}
+
+export async function deleteQuestion(questionId: number): Promise<void> {
+  await apiDelete(`/api/Questions/${questionId}`)
   revalidatePath('/admin')
 }
 
-export async function addMoreLessQuestion(
-  quizId: number,
-  questionText: string,
-  referenceValue: number,
-  correctAnswer: string,
-  unit: string,
-  media: Media = null
-) {
-  const { data: question, error } = await supabaseAdmin
-    .from('questions')
-    .insert([{ quiz_id: quizId, question_text: questionText, question_type: 'more_less', ...mediaFields(media) }])
-    .select('id').single()
-  if (error || !question) throw new Error(error?.message)
-  await supabaseAdmin.from('more_less_answers').insert([{
-    question_id: question.id,
-    reference_value: referenceValue,
-    correct_answer: correctAnswer,
-    unit,
-  }])
-  revalidatePath('/admin')
+// ── Media ─────────────────────────────────────────────────────────────────────
+
+export async function uploadMediaFile(
+  formData: FormData,
+  kind: 'images' | 'videos'
+): Promise<string> {
+  return uploadMedia(kind, formData)
 }
-
-// ── UPDATE ────────────────────────────────────────────────────────────────────
-
-export async function updateQuestionText(questionId: number, questionText: string) {
-  const { error } = await supabaseAdmin
-    .from('questions')
-    .update({ question_text: questionText })
-    .eq('id', questionId)
-  if (error) throw new Error(error.message)
-  revalidatePath('/admin')
-}
-
-export async function updateTrueFalseAnswer(questionId: number, correctAnswer: boolean) {
-  const { error } = await supabaseAdmin
-    .from('true_false_answers')
-    .update({ correct_answer: correctAnswer })
-    .eq('question_id', questionId)
-  if (error) throw new Error(error.message)
-  revalidatePath('/admin')
-}
-
-export async function updateMultipleChoiceOptions(
-  questionId: number,
-  options: { id: number; option_text: string; is_correct: boolean }[]
-) {
-  for (const opt of options) {
-    const { error } = await supabaseAdmin
-      .from('multiple_choice_options')
-      .update({ option_text: opt.option_text, is_correct: opt.is_correct })
-      .eq('id', opt.id)
-    if (error) throw new Error(error.message)
-  }
-  revalidatePath('/admin')
-}
-
-export async function updateMoreLessAnswer(
-  questionId: number,
-  referenceValue: number,
-  correctAnswer: string,
-  unit: string
-) {
-  const { error } = await supabaseAdmin
-    .from('more_less_answers')
-    .update({ reference_value: referenceValue, correct_answer: correctAnswer, unit })
-    .eq('question_id', questionId)
-  if (error) throw new Error(error.message)
-  revalidatePath('/admin')
-}
-
-export async function updateQuestionMedia(questionId: number, media: Media) {
-  const { error } = await supabaseAdmin
-    .from('questions')
-    .update(mediaFields(media))
-    .eq('id', questionId)
-  if (error) throw new Error(error.message)
-  revalidatePath('/admin')
-}
-
-// ── DELETE ────────────────────────────────────────────────────────────────────
-
-export async function deleteQuestion(questionId: number) {
-  // Answer rows are deleted automatically via CASCADE
-  const { error } = await supabaseAdmin
-    .from('questions')
-    .delete()
-    .eq('id', questionId)
-  if (error) throw new Error(error.message)
-  revalidatePath('/admin')
-}
-

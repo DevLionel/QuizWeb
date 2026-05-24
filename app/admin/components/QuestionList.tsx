@@ -1,58 +1,37 @@
 'use client'
 import { useState, useTransition } from 'react'
-import {
-  updateQuestionText,
-  updateTrueFalseAnswer,
-  updateMultipleChoiceOptions,
-  updateMoreLessAnswer,
-  updateQuestionMedia,
-  deleteQuestion,
-} from '../actions'
+import { updateQuestion, deleteQuestion } from '../actions'
+import type { Question, Answer, CreateQuestionPayload, AnswerPayload } from '../../lib/types'
 
-type MCOption = { id: number; option_text: string; is_correct: boolean; sort_order: number | null }
-type TFAnswer = { id: number; correct_answer: boolean }
-type MLAnswer = { id: number; correct_answer: string; reference_value: number; unit: string | null }
-
-type Question = {
-  id: number
-  question_text: string
-  question_type: string
-  media_type: string | null
-  image_url: string | null
-  youtube_url: string | null
-  true_false_answers: TFAnswer[]
-  multiple_choice_options: MCOption[]
-  more_less_answers: MLAnswer[]
-}
+type MCEditOption = { text: string; isCorrect: boolean }
 
 // ── Answer summary (read-only) ────────────────────────────────────────────────
 
 function AnswerSummary({ question }: { question: Question }) {
-  if (question.question_type === 'true_false') {
-    const tf = question.true_false_answers[0]
+  if (question.questionType === 'TrueFalse') {
+    const correct = question.answers.find(a => a.isCorrect)
     return (
-      <p className="text-sm text-gray-500 mt-1">
-        Correct antwoord: <strong>{tf?.correct_answer ? 'Waar' : 'Niet waar'}</strong>
+      <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+        Correct antwoord: <strong>{correct?.answerText ?? '?'}</strong>
       </p>
     )
   }
-  if (question.question_type === 'multiple_choice') {
+  if (question.questionType === 'MultipleChoice') {
     return (
-      <ul className="text-sm text-gray-500 mt-1 list-disc ml-4">
-        {question.multiple_choice_options.map(opt => (
-          <li key={opt.id} className={opt.is_correct ? 'text-green-700 font-medium' : ''}>
-            {opt.option_text} {opt.is_correct ? '✓' : ''}
+      <ul className="text-sm text-gray-500 dark:text-gray-400 mt-1 list-disc ml-4">
+        {question.answers.map(a => (
+          <li key={a.id} className={a.isCorrect ? 'text-green-700 dark:text-green-400 font-medium' : ''}>
+            {a.answerText} {a.isCorrect ? '✓' : ''}
           </li>
         ))}
       </ul>
     )
   }
-  if (question.question_type === 'more_less') {
-    const ml = question.more_less_answers[0]
+  if (question.questionType === 'LessMore' || question.questionType === 'LowerHigher') {
+    const correct = question.answers.find(a => a.isCorrect)
     return (
-      <p className="text-sm text-gray-500 mt-1">
-        Referentiewaarde: <strong>{ml?.reference_value} {ml?.unit}</strong> — correct:{' '}
-        <strong>{ml?.correct_answer}</strong>
+      <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+        Correct antwoord: <strong>{correct?.answerText ?? '?'}</strong>
       </p>
     )
   }
@@ -62,197 +41,160 @@ function AnswerSummary({ question }: { question: Question }) {
 // ── Edit form ─────────────────────────────────────────────────────────────────
 
 function EditForm({
-  question,
-  isPending,
-  onSave,
-  onDelete,
+  question, roundId, isPending, onSave, onDelete,
 }: {
   question: Question
+  roundId: number
   isPending: boolean
   onSave: (action: () => Promise<void>) => void
   onDelete: () => void
 }) {
-  const [text, setText] = useState(question.question_text)
-
-  // media state
-  const [mediaType, setMediaType] = useState<'none' | 'youtube' | 'image'>(
-    (question.media_type as 'youtube' | 'image') ?? 'none'
+  const [text, setText] = useState(question.questionText)
+  const [mediaType, setMediaType] = useState<'none' | 'YouTubeClip' | 'YouTubeShort' | 'Image' | 'Mp4'>(
+    (question.mediaType as 'YouTubeClip' | 'YouTubeShort' | 'Image' | 'Mp4') ?? 'none'
   )
-  const [mediaUrl, setMediaUrl] = useState(
-    question.youtube_url ?? question.image_url ?? ''
-  )
+  const [mediaUrl, setMediaUrl] = useState(question.mediaUrl ?? '')
 
-  // true_false state
-  const [tfCorrect, setTfCorrect] = useState(
-    question.true_false_answers[0]?.correct_answer ?? true
-  )
+  // true_false
+  const tfInitial = question.answers.find(a => a.isCorrect)?.answerText === 'Waar'
+  const [tfCorrect, setTfCorrect] = useState(tfInitial)
 
-  // multiple_choice state
-  const [mcOptions, setMcOptions] = useState(
-    question.multiple_choice_options.map(o => ({
-      id: o.id,
-      option_text: o.option_text,
-      is_correct: o.is_correct,
-    }))
+  // multiple_choice
+  const [mcOptions, setMcOptions] = useState<MCEditOption[]>(
+    question.answers.map(a => ({ text: a.answerText, isCorrect: a.isCorrect }))
   )
 
-  // more_less state
-  const ml = question.more_less_answers[0]
-  const [mlRef, setMlRef] = useState(String(ml?.reference_value ?? ''))
-  const [mlAnswer, setMlAnswer] = useState(ml?.correct_answer ?? 'more')
-  const [mlUnit, setMlUnit] = useState(ml?.unit ?? '')
+  // more_less
+  const mlInitialCorrect = question.answers.find(a => a.isCorrect)?.answerText?.toLowerCase() ?? 'meer'
+  const mlAnswerMap: Record<string, string> = { meer: 'more', minder: 'less', gelijk: 'equal' }
+  const [mlAnswer, setMlAnswer] = useState(mlAnswerMap[mlInitialCorrect] ?? 'more')
+
+  function buildAnswers(): AnswerPayload[] {
+    if (question.questionType === 'TrueFalse') {
+      return [
+        { text: 'Waar', isCorrect: tfCorrect, displayOrder: 1 },
+        { text: 'Niet waar', isCorrect: !tfCorrect, displayOrder: 2 },
+      ]
+    }
+    if (question.questionType === 'MultipleChoice') {
+      return mcOptions.map((o, i) => ({ text: o.text, isCorrect: o.isCorrect, displayOrder: i + 1 }))
+    }
+    if (question.questionType === 'LowerHigher') {
+      return [
+        { text: 'Lager', isCorrect: mlAnswer === 'less', displayOrder: 1 },
+        { text: 'Hoger', isCorrect: mlAnswer === 'more', displayOrder: 2 },
+      ]
+    }
+    // LessMore
+    return [
+      { text: 'Meer', isCorrect: mlAnswer === 'more', displayOrder: 1 },
+      { text: 'Minder', isCorrect: mlAnswer === 'less', displayOrder: 2 },
+    ]
+  }
 
   function handleSave() {
     onSave(async () => {
-      await updateQuestionText(question.id, text)
-      if (question.question_type === 'true_false') {
-        await updateTrueFalseAnswer(question.id, tfCorrect)
-      } else if (question.question_type === 'multiple_choice') {
-        await updateMultipleChoiceOptions(question.id, mcOptions)
-      } else if (question.question_type === 'more_less') {
-        await updateMoreLessAnswer(question.id, Number(mlRef), mlAnswer, mlUnit)
+      const payload: CreateQuestionPayload = {
+        text,
+        questionType: question.questionType,
+        roundId,
+        mediaType: mediaType === 'none' ? null : mediaType as 'YouTubeClip' | 'YouTubeShort' | 'Image' | 'Mp4',
+        mediaUrl: mediaType === 'none' || !mediaUrl.trim() ? null : mediaUrl.trim(),
+        answers: buildAnswers(),
       }
-      const media =
-        mediaType === 'none' || !mediaUrl.trim()
-          ? null
-          : { type: mediaType as 'youtube' | 'image', url: mediaUrl.trim() }
-      await updateQuestionMedia(question.id, media)
+      await updateQuestion(question.id, payload)
     })
   }
 
+  const inputCls = 'border rounded p-2 text-sm dark:bg-gray-800 dark:text-gray-100 dark:border-gray-600'
+
   return (
-    <div className="p-4 bg-white border-t space-y-4">
+    <div className="p-4 bg-white dark:bg-gray-900 border-t space-y-4">
       {/* Question text */}
       <label className="block">
-        <span className="text-sm font-medium text-gray-700">Vraagtekst</span>
-        <input
-          value={text}
-          onChange={e => setText(e.target.value)}
-          className="mt-1 block w-full border rounded p-2 text-sm"
-        />
+        <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Vraagtekst</span>
+        <input value={text} onChange={e => setText(e.target.value)}
+          className={`mt-1 block w-full ${inputCls}`} />
       </label>
 
       {/* True / False */}
-      {question.question_type === 'true_false' && (
+      {question.questionType === 'TrueFalse' && (
         <fieldset>
-          <legend className="text-sm font-medium text-gray-700 mb-1">Correct antwoord</legend>
-          <label className="flex items-center gap-2 text-sm">
-            <input type="radio" checked={tfCorrect === true} onChange={() => setTfCorrect(true)} />
-            Waar
+          <legend className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Correct antwoord</legend>
+          <label className="flex items-center gap-2 text-sm dark:text-gray-200">
+            <input type="radio" checked={tfCorrect} onChange={() => setTfCorrect(true)} /> Waar
           </label>
-          <label className="flex items-center gap-2 text-sm mt-1">
-            <input type="radio" checked={tfCorrect === false} onChange={() => setTfCorrect(false)} />
-            Niet waar
+          <label className="flex items-center gap-2 text-sm mt-1 dark:text-gray-200">
+            <input type="radio" checked={!tfCorrect} onChange={() => setTfCorrect(false)} /> Niet waar
           </label>
         </fieldset>
       )}
 
       {/* Multiple choice */}
-      {question.question_type === 'multiple_choice' && (
+      {question.questionType === 'MultipleChoice' && (
         <div>
-          <span className="text-sm font-medium text-gray-700">Antwoordopties</span>
+          <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Antwoordopties</span>
           {mcOptions.map((opt, i) => (
-            <div key={opt.id} className="flex items-center gap-2 mt-2">
-              <input
-                type="checkbox"
-                checked={opt.is_correct}
+            <div key={i} className="flex items-center gap-2 mt-2">
+              <input type="checkbox" checked={opt.isCorrect}
                 onChange={e => {
                   const updated = [...mcOptions]
-                  updated[i] = { ...updated[i], is_correct: e.target.checked }
+                  updated[i] = { ...updated[i], isCorrect: e.target.checked }
                   setMcOptions(updated)
-                }}
-                title="Correct antwoord"
-              />
-              <input
-                value={opt.option_text}
+                }} title="Correct antwoord" />
+              <input value={opt.text}
                 onChange={e => {
                   const updated = [...mcOptions]
-                  updated[i] = { ...updated[i], option_text: e.target.value }
+                  updated[i] = { ...updated[i], text: e.target.value }
                   setMcOptions(updated)
                 }}
-                className="flex-1 border rounded p-1 text-sm"
-              />
+                className={`flex-1 ${inputCls}`} />
             </div>
           ))}
         </div>
       )}
 
       {/* More / Less */}
-      {question.question_type === 'more_less' && (
-        <div className="grid grid-cols-3 gap-3">
-          <label className="block">
-            <span className="text-sm font-medium text-gray-700">Referentiewaarde</span>
-            <input
-              type="number"
-              value={mlRef}
-              onChange={e => setMlRef(e.target.value)}
-              className="mt-1 block w-full border rounded p-2 text-sm"
-            />
-          </label>
-          <label className="block">
-            <span className="text-sm font-medium text-gray-700">Eenheid</span>
-            <input
-              value={mlUnit}
-              onChange={e => setMlUnit(e.target.value)}
-              className="mt-1 block w-full border rounded p-2 text-sm"
-            />
-          </label>
-          <label className="block">
-            <span className="text-sm font-medium text-gray-700">Correct antwoord</span>
-            <select
-              value={mlAnswer}
-              onChange={e => setMlAnswer(e.target.value)}
-              className="mt-1 block w-full border rounded p-2 text-sm"
-            >
-              <option value="more">Meer</option>
-              <option value="less">Minder</option>
-              <option value="equal">Gelijk</option>
-            </select>
-          </label>
-        </div>
+      {(question.questionType === 'LessMore' || question.questionType === 'LowerHigher') && (
+        <label className="block">
+          <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Correct antwoord</span>
+          <select value={mlAnswer} onChange={e => setMlAnswer(e.target.value)}
+            className={`mt-1 block w-full ${inputCls}`}>
+            <option value="more">{question.questionType === 'LowerHigher' ? 'Hoger' : 'Meer'}</option>
+            <option value="less">{question.questionType === 'LowerHigher' ? 'Lager' : 'Minder'}</option>
+          </select>
+        </label>
       )}
 
       {/* Media */}
       <div className="space-y-2">
-        <span className="text-sm font-medium text-gray-700">Media (optioneel)</span>
-        <div className="flex gap-3 items-center">
-          <select
-            value={mediaType}
-            onChange={e => {
-              setMediaType(e.target.value as 'none' | 'youtube' | 'image')
-              setMediaUrl('')
-            }}
-            className="border rounded p-2 text-sm"
-          >
+        <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Media (optioneel)</span>
+        <div className="flex gap-3 items-center flex-wrap">
+          <select value={mediaType}
+            onChange={e => { setMediaType(e.target.value as typeof mediaType); setMediaUrl('') }}
+            className={inputCls}>
             <option value="none">Geen</option>
-            <option value="youtube">YouTube</option>
-            <option value="image">Afbeelding</option>
+            <option value="YouTubeClip">YouTube</option>
+            <option value="YouTubeShort">YouTube Short</option>
+            <option value="Image">Afbeelding</option>
+            <option value="Mp4">Video / Audio</option>
           </select>
           {mediaType !== 'none' && (
-            <input
-              value={mediaUrl}
-              onChange={e => setMediaUrl(e.target.value)}
-              placeholder={mediaType === 'youtube' ? 'YouTube URL' : 'Afbeelding URL'}
-              className="flex-1 border rounded p-2 text-sm"
-            />
+            <input value={mediaUrl} onChange={e => setMediaUrl(e.target.value)}
+              placeholder={mediaType === 'YouTubeShort' ? 'YouTube Shorts URL' : mediaType === 'YouTubeClip' ? 'YouTube URL' : `${mediaType} URL`}
+              className={`flex-1 ${inputCls}`} />
           )}
         </div>
       </div>
 
       {/* Actions */}
       <div className="flex gap-3 pt-2">
-        <button
-          onClick={handleSave}
-          disabled={isPending}
-          className="bg-blue-600 dark:bg-blue-500 text-white dark:text-gray-900 px-4 py-2 rounded text-sm disabled:opacity-50"
-        >
+        <button onClick={handleSave} disabled={isPending}
+          className="bg-blue-600 dark:bg-blue-500 text-white dark:text-gray-900 px-4 py-2 rounded text-sm disabled:opacity-50">
           {isPending ? 'Opslaan...' : 'Opslaan'}
         </button>
-        <button
-          onClick={onDelete}
-          disabled={isPending}
-          className="bg-red-600 text-white px-4 py-2 rounded text-sm disabled:opacity-50"
-        >
+        <button onClick={onDelete} disabled={isPending}
+          className="bg-red-600 text-white px-4 py-2 rounded text-sm disabled:opacity-50">
           Verwijderen
         </button>
       </div>
@@ -262,31 +204,34 @@ function EditForm({
 
 // ── Main component ────────────────────────────────────────────────────────────
 
-export default function QuestionList({ questions }: { questions: Question[] }) {
+export default function QuestionList({ questions, roundId }: { questions: Question[]; roundId: number }) {
   const [selectedId, setSelectedId] = useState<number | null>(null)
   const [isPending, startTransition] = useTransition()
 
   if (questions.length === 0) {
-    return <p className="text-gray-500">Nog geen vragen. Voeg een vraag toe via het formulier hierboven.</p>
+    return (
+      <p className="text-gray-500 dark:text-gray-400">
+        Nog geen vragen. Voeg een vraag toe via het formulier hierboven.
+      </p>
+    )
   }
 
   return (
     <div>
-      <h2 className="text-xl font-semibold mb-4">Alle vragen ({questions.length})</h2>
+      <h2 className="text-xl font-semibold mb-4 dark:text-gray-100">
+        Alle vragen ({questions.length})
+      </h2>
       {questions.map(q => (
-        <div key={q.id} className="border rounded-lg mb-3 overflow-hidden">
-          <div className="flex items-start gap-3 p-4 bg-gray-50">
-            <input
-              type="checkbox"
-              className="mt-1 cursor-pointer"
+        <div key={q.id} className="border dark:border-gray-700 rounded-lg mb-3 overflow-hidden">
+          <div className="flex items-start gap-3 p-4 bg-gray-50 dark:bg-gray-800">
+            <input type="checkbox" className="mt-1 cursor-pointer"
               checked={selectedId === q.id}
-              onChange={() => setSelectedId(selectedId === q.id ? null : q.id)}
-            />
+              onChange={() => setSelectedId(selectedId === q.id ? null : q.id)} />
             <div className="flex-1">
-              <span className="text-xs font-mono bg-gray-200 px-1 rounded mr-2">
-                {q.question_type}
+              <span className="text-xs font-mono bg-gray-200 dark:bg-gray-700 dark:text-gray-300 px-1 rounded mr-2">
+                {q.questionType}
               </span>
-              <span className="font-medium">{q.question_text}</span>
+              <span className="font-medium dark:text-gray-100">{q.questionText}</span>
               <AnswerSummary question={q} />
             </div>
           </div>
@@ -294,6 +239,7 @@ export default function QuestionList({ questions }: { questions: Question[] }) {
           {selectedId === q.id && (
             <EditForm
               question={q}
+              roundId={roundId}
               isPending={isPending}
               onSave={action => startTransition(action)}
               onDelete={() =>

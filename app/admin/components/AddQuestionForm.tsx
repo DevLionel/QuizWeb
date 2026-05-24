@@ -1,9 +1,10 @@
 'use client'
 import { useState, useTransition } from 'react'
-import { addTrueFalseQuestion, addMultipleChoiceQuestion, addMoreLessQuestion } from '../actions'
+import { saveQuestion, uploadMediaFile } from '../actions'
+import type { CreateQuestionPayload, AnswerPayload } from '../../lib/types'
 
-type QuestionType = 'true_false' | 'multiple_choice' | 'more_less'
-type MediaType = 'youtube' | 'image' | 'audio'
+type QuestionType = 'MultipleChoice' | 'TrueFalse' | 'LowerHigher' | 'LessMore'
+type MediaType = 'YouTubeClip' | 'YouTubeShort' | 'Image' | 'Mp4'
 type MCOption = { text: string; isCorrect: boolean }
 
 // ── Icons ─────────────────────────────────────────────────────────────────────
@@ -39,26 +40,23 @@ function SoundIcon() {
 // ── Validation ────────────────────────────────────────────────────────────────
 
 function validateUrl(type: MediaType, url: string): string | null {
-  if (!url.trim()) return null // empty = no media, that's fine
-  try {
-    new URL(url) // must be a valid URL first
-  } catch {
-    return 'Enter a valid URL (starting with https://)'
-  }
-  if (type === 'youtube') {
+  if (!url.trim()) return null
+  try { new URL(url) } catch { return 'Voer een geldige URL in (beginnend met https://)' }
+  if (type === 'YouTubeClip' || type === 'YouTubeShort') {
     const isYt =
       /youtube\.com\/watch\?.*v=[\w-]+/.test(url) ||
       /youtu\.be\/[\w-]+/.test(url) ||
-      /youtube\.com\/embed\/[\w-]+/.test(url)
-    if (!isYt) return 'Must be a YouTube URL (youtube.com/watch?v=… or youtu.be/…)'
+      /youtube\.com\/embed\/[\w-]+/.test(url) ||
+      /youtube\.com\/shorts\/[\w-]+/.test(url)
+    if (!isYt) return 'Moet een YouTube URL zijn (youtube.com/watch?v=… of youtu.be/…)'
   }
-  if (type === 'image') {
+  if (type === 'Image') {
     const isImage = /\.(jpg|jpeg|png|gif|webp|svg|avif)(\?.*)?$/i.test(url)
-    if (!isImage) return 'URL must end with an image extension (.jpg, .png, .webp, …)'
+    if (!isImage) return 'URL moet eindigen met een afbeeldingsextensie (.jpg, .png, .webp, …)'
   }
-  if (type === 'audio') {
-    const isAudio = /\.(mp3|wav|ogg|m4a|aac|flac)(\?.*)?$/i.test(url)
-    if (!isAudio) return 'URL must end with an audio extension (.mp3, .wav, .ogg, …)'
+  if (type === 'Mp4') {
+    const isMedia = /\.(mp4|mp3|wav|ogg|m4a|aac|flac|webm)(\?.*)?$/i.test(url)
+    if (!isMedia) return 'URL moet eindigen met een media-extensie (.mp4, .mp3, .wav, …)'
   }
   return null
 }
@@ -68,74 +66,90 @@ function validateUrl(type: MediaType, url: string): string | null {
 type MediaState = { type: MediaType; url: string } | null
 
 function MediaFields({
-  value,
-  onChange,
+  value, onChange,
 }: {
   value: MediaState
   onChange: (v: MediaState) => void
 }) {
   const [urlError, setUrlError] = useState<string | null>(null)
+  const [uploading, setUploading] = useState(false)
 
   function selectType(t: MediaType) {
-    if (value?.type === t) {
-      onChange(null) // toggle off
-      setUrlError(null)
-    } else {
-      onChange({ type: t, url: '' })
-      setUrlError(null)
-    }
+    if (value?.type === t) { onChange(null); setUrlError(null) }
+    else { onChange({ type: t, url: '' }); setUrlError(null) }
   }
 
   function handleUrlChange(url: string) {
     if (!value) return
-    const err = validateUrl(value.type, url)
-    setUrlError(err)
+    setUrlError(validateUrl(value.type, url))
     onChange({ ...value, url })
+  }
+
+  async function handleFileUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    if (!file || !value) return
+    setUploading(true)
+    try {
+      const fd = new FormData()
+      fd.append('file', file)
+      const kind = value.type === 'Mp4' ? 'videos' : 'images'
+      const url = await uploadMediaFile(fd, kind)
+      onChange({ ...value, url })
+      setUrlError(null)
+    } catch (err) {
+      setUrlError('Upload mislukt: ' + (err as Error).message)
+    } finally {
+      setUploading(false)
+    }
   }
 
   const btnBase = 'flex items-center gap-2 px-4 py-2 rounded-lg border text-sm font-medium transition-colors'
   const active = 'bg-blue-600 dark:bg-blue-500 text-white dark:text-gray-900 border-blue-600 dark:border-blue-500'
-  const inactive = 'bg-white text-gray-600 border-gray-300 hover:border-blue-400 dark:hover:border-blue-400'
+  const inactive = 'bg-white text-gray-600 border-gray-300 hover:border-blue-400 dark:bg-transparent dark:text-gray-300 dark:border-gray-600'
 
   const placeholders: Record<MediaType, string> = {
-    youtube: 'https://www.youtube.com/watch?v=…',
-    image: 'https://example.com/image.jpg',
-    audio: 'https://example.com/sound.mp3',
+    YouTubeClip: 'https://www.youtube.com/watch?v=…',
+    YouTubeShort: 'https://www.youtube.com/shorts/…',
+    Image: 'https://example.com/image.jpg',
+    Mp4: 'https://example.com/video.mp4',
   }
 
   return (
     <div className="mb-4">
-      <span className="block text-sm font-medium text-gray-700 mb-2">Media (optional)</span>
-      <div className="flex gap-2 mb-3">
-        <button type="button" onClick={() => selectType('youtube')}
-          className={`${btnBase} ${value?.type === 'youtube' ? active : inactive}`}>
-          <span className="text-red-500"><YoutubeIcon /></span>
-          YouTube
-        </button>
-        <button type="button" onClick={() => selectType('image')}
-          className={`${btnBase} ${value?.type === 'image' ? active : inactive}`}>
-          <span className="text-green-600"><PhotoIcon /></span>
-          Photo
-        </button>
-        <button type="button" onClick={() => selectType('audio')}
-          className={`${btnBase} ${value?.type === 'audio' ? active : inactive}`}>
-          <span className="text-purple-600"><SoundIcon /></span>
-          Sound
-        </button>
+      <span className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Media (optioneel)</span>
+      <div className="flex gap-2 mb-3 flex-wrap">
+        {([
+          { type: 'YouTubeClip', label: 'YouTube', icon: <YoutubeIcon />, color: 'text-red-500' },
+          { type: 'YouTubeShort', label: 'YT Short', icon: <YoutubeIcon />, color: 'text-red-400' },
+          { type: 'Image', label: 'Foto', icon: <PhotoIcon />, color: 'text-green-600' },
+          { type: 'Mp4', label: 'Video/Audio', icon: <SoundIcon />, color: 'text-purple-600' },
+        ] as { type: MediaType; label: string; icon: React.ReactNode; color: string }[]).map(({ type: t, label, icon, color }) => (
+          <button key={t} type="button" onClick={() => selectType(t)}
+            className={`${btnBase} ${value?.type === t ? active : inactive}`}>
+            <span className={color}>{icon}</span>
+            {label}
+          </button>
+        ))}
       </div>
 
       {value && (
-        <div>
-          <input
-            value={value.url}
-            onChange={e => handleUrlChange(e.target.value)}
+        <div className="space-y-2">
+          <input value={value.url} onChange={e => handleUrlChange(e.target.value)}
             placeholder={placeholders[value.type]}
-            className={`block w-full border rounded p-2 text-sm ${urlError ? 'border-red-400' : ''}`}
+            className={`block w-full border rounded p-2 text-sm dark:bg-gray-800 dark:text-gray-100 ${urlError ? 'border-red-400' : 'border-gray-300 dark:border-gray-600'}`}
           />
-          {urlError && <p className="text-red-500 text-xs mt-1">{urlError}</p>}
-          {!urlError && value.url && (
-            <p className="text-green-600 text-xs mt-1">Valid {value.type} URL</p>
+          {(value.type === 'Image' || value.type === 'Mp4') && (
+            <div className="flex items-center gap-2">
+              <label className="text-xs text-gray-500 dark:text-gray-400">Of upload bestand:</label>
+              <input type="file"
+                accept={value.type === 'Image' ? 'image/*' : 'video/*,audio/*'}
+                onChange={handleFileUpload} disabled={uploading}
+                className="text-xs" />
+              {uploading && <span className="text-xs text-blue-500">Uploading…</span>}
+            </div>
           )}
+          {urlError && <p className="text-red-500 text-xs">{urlError}</p>}
+          {!urlError && value.url && <p className="text-green-600 text-xs">Geldige {value.type} URL</p>}
         </div>
       )}
     </div>
@@ -147,14 +161,12 @@ function MediaFields({
 function TrueFalseFields({ value, onChange }: { value: boolean; onChange: (v: boolean) => void }) {
   return (
     <fieldset className="mb-4">
-      <legend className="text-sm font-medium text-gray-700 mb-2">Correct antwoord</legend>
-      <label className="flex items-center gap-2 text-sm">
-        <input type="radio" checked={value === true} onChange={() => onChange(true)} />
-        Waar
+      <legend className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Correct antwoord</legend>
+      <label className="flex items-center gap-2 text-sm dark:text-gray-200">
+        <input type="radio" checked={value === true} onChange={() => onChange(true)} /> Waar
       </label>
-      <label className="flex items-center gap-2 text-sm mt-1">
-        <input type="radio" checked={value === false} onChange={() => onChange(false)} />
-        Niet waar
+      <label className="flex items-center gap-2 text-sm mt-1 dark:text-gray-200">
+        <input type="radio" checked={value === false} onChange={() => onChange(false)} /> Niet waar
       </label>
     </fieldset>
   )
@@ -166,57 +178,52 @@ function MultipleChoiceFields({ options, onChange }: { options: MCOption[]; onCh
   }
   return (
     <div className="mb-4">
-      <span className="text-sm font-medium text-gray-700">Antwoordopties</span>
+      <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Antwoordopties</span>
       <p className="text-xs text-gray-400 mb-2">Vink het juiste antwoord aan.</p>
       {options.map((opt, i) => (
         <div key={i} className="flex items-center gap-2 mt-2">
           <input type="checkbox" checked={opt.isCorrect}
-            onChange={e => updateOption(i, { isCorrect: e.target.checked })}
-            title="Correct antwoord" />
+            onChange={e => updateOption(i, { isCorrect: e.target.checked })} title="Correct antwoord" />
           <input value={opt.text} onChange={e => updateOption(i, { text: e.target.value })}
-            placeholder={`Optie ${i + 1}`} required className="flex-1 border rounded p-2 text-sm" />
+            placeholder={`Optie ${i + 1}`} required
+            className="flex-1 border rounded p-2 text-sm dark:bg-gray-800 dark:text-gray-100 dark:border-gray-600" />
           {options.length > 2 && (
             <button type="button" onClick={() => onChange(options.filter((_, j) => j !== i))}
-              className="text-red-500 text-xs px-2">
-              Verwijder
-            </button>
+              className="text-red-500 text-xs px-2">Verwijder</button>
           )}
         </div>
       ))}
       <button type="button" onClick={() => onChange([...options, { text: '', isCorrect: false }])}
-        className="mt-3 text-sm text-blue-600 dark:text-blue-300 underline">
-        + Optie toevoegen
-      </button>
+        className="mt-3 text-sm text-blue-600 dark:text-blue-300 underline">+ Optie toevoegen</button>
     </div>
   )
 }
 
-function MoreLessFields({
-  referenceValue, onReferenceChange, answer, onAnswerChange, unit, onUnitChange,
-}: {
+function MoreLessFields({ referenceValue, onReferenceChange, answer, onAnswerChange, unit, onUnitChange, questionType }: {
   referenceValue: string; onReferenceChange: (v: string) => void
   answer: string; onAnswerChange: (v: string) => void
   unit: string; onUnitChange: (v: string) => void
+  questionType: QuestionType
 }) {
+  const isLowerHigher = questionType === 'LowerHigher'
   return (
     <div className="mb-4 grid grid-cols-3 gap-3">
       <label className="block">
-        <span className="text-sm font-medium text-gray-700">Referentiewaarde</span>
-        <input type="number" value={referenceValue} onChange={e => onReferenceChange(e.target.value)}
-          required className="mt-1 block w-full border rounded p-2 text-sm" />
+        <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Referentiewaarde</span>
+        <input type="number" value={referenceValue} onChange={e => onReferenceChange(e.target.value)} required
+          className="mt-1 block w-full border rounded p-2 text-sm dark:bg-gray-800 dark:text-gray-100 dark:border-gray-600" />
       </label>
       <label className="block">
-        <span className="text-sm font-medium text-gray-700">Eenheid (bijv. kg)</span>
-        <input value={unit} onChange={e => onUnitChange(e.target.value)}
-          className="mt-1 block w-full border rounded p-2 text-sm" placeholder="kg, cm, …" />
+        <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Eenheid (bijv. kg)</span>
+        <input value={unit} onChange={e => onUnitChange(e.target.value)} placeholder="kg, cm, …"
+          className="mt-1 block w-full border rounded p-2 text-sm dark:bg-gray-800 dark:text-gray-100 dark:border-gray-600" />
       </label>
       <label className="block">
-        <span className="text-sm font-medium text-gray-700">Correct antwoord</span>
+        <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Correct antwoord</span>
         <select value={answer} onChange={e => onAnswerChange(e.target.value)}
-          className="mt-1 block w-full border rounded p-2 text-sm">
-          <option value="more">Meer</option>
-          <option value="less">Minder</option>
-          <option value="equal">Gelijk</option>
+          className="mt-1 block w-full border rounded p-2 text-sm dark:bg-gray-800 dark:text-gray-100 dark:border-gray-600">
+          <option value="more">{isLowerHigher ? 'Hoger' : 'Meer'}</option>
+          <option value="less">{isLowerHigher ? 'Lager' : 'Minder'}</option>
         </select>
       </label>
     </div>
@@ -225,8 +232,8 @@ function MoreLessFields({
 
 // ── Main form ─────────────────────────────────────────────────────────────────
 
-export default function AddQuestionForm({ quizId }: { quizId: number }) {
-  const [type, setType] = useState<QuestionType>('true_false')
+export default function AddQuestionForm({ roundId }: { roundId: number }) {
+  const [type, setType] = useState<QuestionType>('MultipleChoice')
   const [questionText, setQuestionText] = useState('')
   const [media, setMedia] = useState<MediaState>(null)
 
@@ -252,34 +259,58 @@ export default function AddQuestionForm({ quizId }: { quizId: number }) {
     setMlUnit('')
   }
 
-  function getValidMedia() {
-    if (!media || !media.url.trim()) return null
-    if (validateUrl(media.type, media.url)) return null // invalid — don't save
-    return media
+  function buildAnswers(): AnswerPayload[] {
+    if (type === 'TrueFalse') {
+      return [
+        { text: 'Waar', isCorrect: tfCorrect === true, displayOrder: 1 },
+        { text: 'Niet waar', isCorrect: tfCorrect === false, displayOrder: 2 },
+      ]
+    }
+    if (type === 'MultipleChoice') {
+      return mcOptions.map((opt, i) => ({
+        text: opt.text,
+        isCorrect: opt.isCorrect,
+        displayOrder: i + 1,
+      }))
+    }
+    if (type === 'LowerHigher') {
+      return [
+        { text: 'Lager', isCorrect: mlAnswer === 'less', displayOrder: 1 },
+        { text: 'Hoger', isCorrect: mlAnswer === 'more', displayOrder: 2 },
+      ]
+    }
+    // LessMore
+    return [
+      { text: 'Meer', isCorrect: mlAnswer === 'more', displayOrder: 1 },
+      { text: 'Minder', isCorrect: mlAnswer === 'less', displayOrder: 2 },
+    ]
   }
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
-    // Block submit if media URL is filled but invalid
     if (media?.url && validateUrl(media.type, media.url)) {
-      setMessage({ text: 'Please fix the media URL before saving.', ok: false })
+      setMessage({ text: 'Herstel de media-URL voor het opslaan.', ok: false })
+      return
+    }
+    if (type === 'MultipleChoice' && !mcOptions.some(o => o.isCorrect)) {
+      setMessage({ text: 'Vink minstens één correct antwoord aan.', ok: false })
       return
     }
     setMessage(null)
-    const validMedia = getValidMedia()
+
+    const validMedia = (media?.url?.trim()) ? media : null
+    const payload: CreateQuestionPayload = {
+      text: questionText,
+      questionType: type,
+      roundId,
+      mediaType: validMedia?.type ?? null,
+      mediaUrl: validMedia?.url ?? null,
+      answers: buildAnswers(),
+    }
+
     startTransition(async () => {
       try {
-        if (type === 'true_false') {
-          await addTrueFalseQuestion(quizId, questionText, tfCorrect, validMedia)
-        } else if (type === 'multiple_choice') {
-          if (!mcOptions.some(o => o.isCorrect)) {
-            setMessage({ text: 'Vink minstens één correct antwoord aan.', ok: false })
-            return
-          }
-          await addMultipleChoiceQuestion(quizId, questionText, mcOptions, validMedia)
-        } else {
-          await addMoreLessQuestion(quizId, questionText, Number(mlRef), mlAnswer, mlUnit, validMedia)
-        }
+        await saveQuestion(roundId, payload)
         setMessage({ text: 'Vraag opgeslagen!', ok: true })
         resetForm()
       } catch (err) {
@@ -289,31 +320,33 @@ export default function AddQuestionForm({ quizId }: { quizId: number }) {
   }
 
   return (
-    <form onSubmit={handleSubmit} className="border rounded-lg p-6 bg-white shadow-sm">
-      <h2 className="text-xl font-semibold mb-4">Nieuwe vraag toevoegen</h2>
+    <form onSubmit={handleSubmit} className="border rounded-lg p-6 bg-white dark:bg-gray-900 shadow-sm">
+      <h2 className="text-xl font-semibold mb-4 dark:text-gray-100">Nieuwe vraag toevoegen</h2>
 
       <label className="block mb-4">
-        <span className="text-sm font-medium text-gray-700">Vraagtype</span>
+        <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Vraagtype</span>
         <select value={type} onChange={e => setType(e.target.value as QuestionType)}
-          className="mt-1 block w-full border rounded p-2">
-          <option value="true_false">Waar / Niet waar</option>
-          <option value="multiple_choice">Meerkeuze</option>
-          <option value="more_less">Meer / Minder / Gelijk</option>
+          className="mt-1 block w-full border rounded p-2 dark:bg-gray-800 dark:text-gray-100 dark:border-gray-600">
+          <option value="MultipleChoice">Meerkeuze</option>
+          <option value="TrueFalse">Waar / Niet waar</option>
+          <option value="LessMore">Meer / Minder</option>
+          <option value="LowerHigher">Lager / Hoger</option>
         </select>
       </label>
 
       <label className="block mb-4">
-        <span className="text-sm font-medium text-gray-700">Vraagtekst</span>
-        <input value={questionText} onChange={e => setQuestionText(e.target.value)}
-          required className="mt-1 block w-full border rounded p-2"
+        <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Vraagtekst</span>
+        <input value={questionText} onChange={e => setQuestionText(e.target.value)} required
+          className="mt-1 block w-full border rounded p-2 dark:bg-gray-800 dark:text-gray-100 dark:border-gray-600"
           placeholder="Typ hier de vraag…" />
       </label>
 
-      {type === 'true_false' && <TrueFalseFields value={tfCorrect} onChange={setTfCorrect} />}
-      {type === 'multiple_choice' && <MultipleChoiceFields options={mcOptions} onChange={setMcOptions} />}
-      {type === 'more_less' && (
+      {type === 'TrueFalse' && <TrueFalseFields value={tfCorrect} onChange={setTfCorrect} />}
+      {type === 'MultipleChoice' && <MultipleChoiceFields options={mcOptions} onChange={setMcOptions} />}
+      {(type === 'LessMore' || type === 'LowerHigher') && (
         <MoreLessFields referenceValue={mlRef} onReferenceChange={setMlRef}
-          answer={mlAnswer} onAnswerChange={setMlAnswer} unit={mlUnit} onUnitChange={setMlUnit} />
+          answer={mlAnswer} onAnswerChange={setMlAnswer} unit={mlUnit} onUnitChange={setMlUnit}
+          questionType={type} />
       )}
 
       <MediaFields value={media} onChange={setMedia} />
