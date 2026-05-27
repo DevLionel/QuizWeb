@@ -3,6 +3,7 @@ import { getRoundById } from '../../../../../services/roundService'
 import { getQuestionsForRound } from '../../../../../services/questionService'
 import AddQuestionForm from '../../../../components/AddQuestionForm'
 import AddPhotoCardForm from '../../../../components/AddPhotoCardForm'
+import AddPassportCardForm from '../../../../components/AddPassportCardForm'
 import QuestionList from '../../../../components/QuestionList'
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
@@ -46,16 +47,18 @@ export default async function AdminRoundPage({
         </div>
       </div>
 
-      {/* Add question / photo card form */}
+      {/* Add question / photo card / passport card form */}
       {round.roundType === 'PhotoRound'
         ? <AddPhotoCardForm roundId={roundId} questionCount={questions.length} />
+        : round.roundType === 'PassportRound'
+        ? <AddPassportCardForm roundId={roundId} questionCount={questions.length} />
         : <AddQuestionForm roundId={roundId} />
       }
 
       <hr className="my-8 dark:border-gray-700" />
 
       {/* Question list */}
-      <QuestionList questions={questions} roundId={roundId} />
+      <QuestionList questions={questions} roundId={roundId} roundType={round.roundType} />
     </main>
   )
 }

@@ -62,7 +62,7 @@ export default function RoundList({
     return created.id
   }
 
-  function handleCreate(e: React.FormEvent) {
+  function handleCreate(e: React.SyntheticEvent<HTMLFormElement>) {
     e.preventDefault()
     if (!newName.trim()) return
     setMessage(null)
@@ -88,7 +88,7 @@ export default function RoundList({
     })
   }
 
-  function handleUpdate(e: React.FormEvent, id: number) {
+  function handleUpdate(e: React.SyntheticEvent<HTMLFormElement>, id: number) {
     e.preventDefault()
     const name = editData.name?.trim()
     if (!name) return
@@ -247,7 +247,11 @@ export default function RoundList({
                     <Link
                       href={`/admin/categories/${categoryId}/rounds/${round.id}`}
                       className="text-sm text-blue-600 dark:text-blue-400 underline">
-                      {round.roundType === 'PhotoRound' ? "Foto's beheren →" : 'Vragen beheren →'}
+                      {round.roundType === 'PhotoRound'
+                        ? "Foto's beheren →"
+                        : round.roundType === 'PassportRound'
+                        ? 'Paspoorten beheren →'
+                        : 'Vragen beheren →'}
                     </Link>
                     <button onClick={() => startEdit(round)}
                       className="text-sm text-gray-500 dark:text-gray-400 border border-gray-300 dark:border-gray-600 px-3 py-1.5 rounded hover:bg-gray-50 dark:hover:bg-gray-800">

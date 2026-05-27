@@ -2,6 +2,7 @@ import { getRoundById } from '../../../services/roundService'
 import { getQuestionsForRound } from '../../../services/questionService'
 import QuizEngine from '../../../components/Quiz/QuizEngine'
 import PhotoRoundEngine from '../../../components/Quiz/PhotoRoundEngine'
+import PassportRoundEngine from '../../../components/Quiz/PassportRoundEngine'
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
 
@@ -35,6 +36,22 @@ export default async function QuizRoundPage({
       <div className="min-h-screen py-10 px-4">
         {backLink}
         <PhotoRoundEngine questions={questions} roundName={round.name} subject={round.subjectName ?? undefined} />
+      </div>
+    )
+  }
+
+  if (round.roundType === 'PassportRound') {
+    return (
+      <div className="min-h-screen py-10 px-4">
+        <div className="max-w-3xl mx-auto mb-6">
+          <Link
+            href={`/categories/${round.categoryId}`}
+            className="text-green-600 dark:text-green-500 hover:underline text-lg"
+          >
+            ← Terug naar {round.categoryName}
+          </Link>
+        </div>
+        <PassportRoundEngine questions={questions} roundName={round.name} subject={round.subjectName ?? undefined} />
       </div>
     )
   }
