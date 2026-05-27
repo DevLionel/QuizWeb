@@ -117,7 +117,7 @@ Base URL: `http://192.168.2.50:5059` (configured via `QUIZ_API_BASE_URL`)
 | Method | Path | Purpose |
 |---|---|---|
 | GET | `/api/Rounds?categoryId=N` | List rounds for a category |
-| POST | `/api/Rounds` | Create round `{ name, displayOrder, roundType, categoryId }` |
+| POST | `/api/Rounds` | Create round `{ name, subject, displayOrder, roundType, categoryId }` |
 | GET | `/api/Rounds/{id}` | Get single round |
 | PUT | `/api/Rounds/{id}` | Update round |
 | DELETE | `/api/Rounds/{id}` | Delete round |
@@ -152,14 +152,14 @@ interface AnswerResponse {
 
 interface QuestionResponse {
   id: number; text: string
-  questionType: 'true_false' | 'multiple_choice' | 'more_less'
+  questionType: 'true_false' | 'multiple_choice' | 'more_less' | 'Photo'
   roundId: number; roundName: string; categoryId: number; categoryName: string
   createdAt: string; mediaType: 'youtube' | 'image' | 'audio' | null; mediaUrl: string | null
   answers: AnswerResponse[]
 }
 
 interface RoundResponse {
-  id: number; name: string; displayOrder: number; roundType: string
+  id: number; name: string; subject: string; displayOrder: number; roundType: string
   categoryId: number; categoryName: string
 }
 
@@ -169,7 +169,7 @@ interface CategoryResponse { id: number; name: string }
 interface Answer { id: number; answerText: string; isCorrect: boolean }
 interface Question {
   id: number; questionText: string
-  questionType: 'true_false' | 'multiple_choice' | 'more_less'
+  questionType: 'true_false' | 'multiple_choice' | 'more_less' | 'Photo'
   mediaType: string | null; mediaUrl: string | null; answers: Answer[]
 }
 ```
@@ -185,6 +185,7 @@ interface Question {
 | `true_false` | `TruefalseTemplate.tsx` | Two buttons: Waar / Niet waar |
 | `multiple_choice` | `MultipleChoiceTemplate.tsx` | 2–6 answer buttons |
 | `more_less` | `MoreLessTemplate.tsx` | Three buttons: Meer / Minder / Gelijk |
+| `Photo` | `PhotoCard.tsx` (via `PhotoRoundEngine`) | Photo card in 3×3 grid — 1 answer (isCorrect: true) |
 
 All templates:
 - Accept `givenAnswer` prop — shows locked state (green=correct, red=wrong) when user navigates back
@@ -237,8 +238,9 @@ The `/admin` route allows an administrator to manage the full data hierarchy wit
 | `true_false` | `[{text:'Waar', isCorrect: tfCorrect}, {text:'Niet waar', isCorrect: !tfCorrect}]` |
 | `multiple_choice` | Maps each `MCOption` to `{text, isCorrect, displayOrder: i+1}` |
 | `more_less` | `[{text:'Meer'}, {text:'Minder'}, {text:'Gelijk'}]` — one marked `isCorrect:true` |
+| `Photo` | `[{text: answerText, isCorrect: true, displayOrder: 1}]` — single correct answer |
 
-All three types call the single `saveQuestion(roundId, payload)` server action → `POST /api/Questions`.
+All four types call the single `saveQuestion(roundId, payload)` server action → `POST /api/Questions`.
 
 ### Server actions (app/admin/actions.ts)
 

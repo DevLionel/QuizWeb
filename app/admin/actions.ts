@@ -1,9 +1,10 @@
 'use server'
 import { revalidatePath } from 'next/cache'
-import { apiPost, apiPut, apiDelete, uploadMedia } from '../lib/apiClient'
+import { apiGet, apiPost, apiPut, apiDelete, uploadMedia } from '../lib/apiClient'
 import type {
   CategoryResponse,
   RoundResponse,
+  SubjectResponse,
   QuestionResponse,
   CreateQuestionPayload,
   CreateRoundPayload,
@@ -26,6 +27,21 @@ export async function updateCategory(id: number, name: string): Promise<Category
 export async function deleteCategory(id: number): Promise<void> {
   await apiDelete(`/api/Categories/${id}`)
   revalidatePath('/admin')
+}
+
+// ── Subjects ──────────────────────────────────────────────────────────────────
+
+export async function getSubjects(): Promise<SubjectResponse[]> {
+  return apiGet<SubjectResponse[]>('/api/Subjects')
+}
+
+/** Finds an existing subject by name (case-insensitive) or creates a new one. */
+export async function findOrCreateSubject(name: string): Promise<SubjectResponse> {
+  const trimmed = name.trim()
+  const all = await apiGet<SubjectResponse[]>('/api/Subjects')
+  const existing = all.find(s => s.name.toLowerCase() === trimmed.toLowerCase())
+  if (existing) return existing
+  return apiPost<SubjectResponse>('/api/Subjects', { name: trimmed })
 }
 
 // ── Rounds ────────────────────────────────────────────────────────────────────

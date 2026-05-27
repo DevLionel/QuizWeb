@@ -69,6 +69,9 @@ function EditForm({
   const mlAnswerMap: Record<string, string> = { meer: 'more', minder: 'less', gelijk: 'equal' }
   const [mlAnswer, setMlAnswer] = useState(mlAnswerMap[mlInitialCorrect] ?? 'more')
 
+  // photo — single correct answer text
+  const [photoAnswer, setPhotoAnswer] = useState(question.answers[0]?.answerText ?? '')
+
   function buildAnswers(): AnswerPayload[] {
     if (question.questionType === 'TrueFalse') {
       return [
@@ -84,6 +87,10 @@ function EditForm({
         { text: 'Lager', isCorrect: mlAnswer === 'less', displayOrder: 1 },
         { text: 'Hoger', isCorrect: mlAnswer === 'more', displayOrder: 2 },
       ]
+    }
+    if (question.questionType === 'Photo') {
+      // API requires exactly 1 answer with isCorrect: true
+      return [{ text: photoAnswer.trim(), isCorrect: true, displayOrder: 1 }]
     }
     // LessMore
     return [
@@ -116,6 +123,19 @@ function EditForm({
         <input value={text} onChange={e => setText(e.target.value)}
           className={`mt-1 block w-full ${inputCls}`} />
       </label>
+
+      {/* Photo — single answer text (shown on card reveal) */}
+      {question.questionType === 'Photo' && (
+        <label className="block">
+          <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Antwoord (zichtbaar na onthullen)</span>
+          <input
+            value={photoAnswer}
+            onChange={e => setPhotoAnswer(e.target.value)}
+            placeholder="Bijv. Vincent van Gogh"
+            className={`mt-1 block w-full ${inputCls}`}
+          />
+        </label>
+      )}
 
       {/* True / False */}
       {question.questionType === 'TrueFalse' && (

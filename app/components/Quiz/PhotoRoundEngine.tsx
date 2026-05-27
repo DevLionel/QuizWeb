@@ -9,9 +9,10 @@ const TOTAL_CARDS = 9;
 interface Props {
   questions: Question[];
   roundName: string;
+  subject?: string;
 }
 
-export default function PhotoRoundEngine({ questions, roundName }: Props) {
+export default function PhotoRoundEngine({ questions, roundName, subject }: Props) {
   const [revealedSet, setRevealedSet] = useState<Set<number>>(new Set());
 
   const revealedCount = revealedSet.size;
@@ -30,12 +31,19 @@ export default function PhotoRoundEngine({ questions, roundName }: Props) {
   );
 
   return (
-    <div className="max-w-2xl mx-auto space-y-4 px-2">
+    <div className="max-w-5xl mx-auto space-y-4 px-2">
       {/* Header */}
       <div className="flex items-center justify-between gap-4">
-        <h2 className="text-2xl font-bold text-green-600 dark:text-green-500 truncate">
-          {roundName}
-        </h2>
+        <div className="min-w-0">
+          <h2 className="text-2xl font-bold text-green-600 dark:text-green-500 truncate">
+            {roundName}
+          </h2>
+          {subject && (
+            <p className="text-lg font-semibold text-green-700 dark:text-green-400 mt-1 truncate">
+              {subject}
+            </p>
+          )}
+        </div>
         <div className="flex items-center gap-3 shrink-0">
           <span className="text-sm font-medium text-gray-500 dark:text-gray-300 tabular-nums">
             {revealedCount} / {TOTAL_CARDS} onthuld
@@ -50,7 +58,7 @@ export default function PhotoRoundEngine({ questions, roundName }: Props) {
       </div>
 
       {/* 3×3 grid */}
-      <div className="grid grid-cols-3 gap-3">
+      <div className="grid grid-cols-3 gap-4">
         {slots.map((question, i) =>
           question ? (
             <PhotoCard

@@ -33,12 +33,12 @@ export default function PhotoCard({ question, index, revealed, onReveal }: Props
       )}
 
       {/* Number badge */}
-      <div className="absolute top-2 left-2 bg-green-600 dark:bg-green-700 text-white w-7 h-7 rounded-full flex items-center justify-center text-sm font-bold shadow">
+      <div className="absolute top-3 left-3 bg-green-600 dark:bg-green-700 text-white w-11 h-11 rounded-full flex items-center justify-center text-base font-bold shadow">
         {index}
       </div>
 
       {/* Answer subtitle bar */}
-      <div className="absolute bottom-0 left-0 right-0 bg-white/90 dark:bg-black/70 backdrop-blur-sm py-1 px-2 text-sm font-semibold text-center truncate">
+      <div className="absolute bottom-0 left-0 right-0 bg-white/90 dark:bg-black/70 backdrop-blur-sm py-2 px-3 text-base font-semibold text-center truncate">
         {revealed ? (
           <span className="text-emerald-700 dark:text-emerald-400">{answerText}</span>
         ) : (

@@ -1,10 +1,8 @@
 'use client'
 import { useState, useTransition } from 'react'
 import Link from 'next/link'
-import { createRound, updateRound, deleteRound } from '../actions'
-import type { RoundResponse, CreateRoundPayload } from '../../lib/types'
-
-type RoundType = 'QuestionRound' | 'PhotoRound' | 'PassportRound'
+import { createRound, updateRound, deleteRound, findOrCreateSubject } from '../actions'
+import type { RoundResponse, CreateRoundPayload, RoundType, SubjectResponse } from '../../lib/types'
 
 const ROUND_TYPES: { value: RoundType; label: string }[] = [
   { value: 'QuestionRound', label: 'Vragenronde' },
@@ -15,13 +13,23 @@ const ROUND_TYPES: { value: RoundType; label: string }[] = [
 export default function RoundList({
   rounds,
   categoryId,
+  subjects: initialSubjects,
 }: {
   rounds: RoundResponse[]
   categoryId: number
+  subjects: SubjectResponse[]
 }) {
+  // Local copies so the UI updates immediately without waiting for server re-render.
+  const [localRounds, setLocalRounds] = useState<RoundResponse[]>(rounds)
+  const [subjects, setSubjects] = useState<SubjectResponse[]>(initialSubjects)
+
   const [editId, setEditId] = useState<number | null>(null)
-  const [editData, setEditData] = useState<Partial<CreateRoundPayload>>({})
+  const [editData, setEditData] = useState<Partial<CreateRoundPayload> & { subjectInput: string }>({
+    subjectInput: '',
+  })
+
   const [newName, setNewName] = useState('')
+  const [newSubjectInput, setNewSubjectInput] = useState('')
   const [newType, setNewType] = useState<RoundType>('QuestionRound')
   const [isPending, startTransition] = useTransition()
   const [message, setMessage] = useState<{ text: string; ok: boolean } | null>(null)
@@ -30,28 +38,50 @@ export default function RoundList({
     setEditId(round.id)
     setEditData({
       name: round.name,
+      subjectId: round.subjectId,
+      subjectInput: round.subjectName ?? '',
       displayOrder: round.displayOrder,
       roundType: round.roundType,
       categoryId,
     })
   }
 
+  /** Resolves the subject text input → subjectId.
+   *  If the text is empty → null.
+   *  If the text matches an existing subject → use its id.
+   *  If the text is new → create the subject and return its id.
+   *  Also updates the local subjects list so the new subject appears immediately.
+   */
+  async function resolveSubjectId(input: string): Promise<number | null> {
+    const name = input.trim()
+    if (!name) return null
+    const existing = subjects.find(s => s.name.toLowerCase() === name.toLowerCase())
+    if (existing) return existing.id
+    const created = await findOrCreateSubject(name)
+    setSubjects(prev => [...prev, created])
+    return created.id
+  }
+
   function handleCreate(e: React.FormEvent) {
     e.preventDefault()
     if (!newName.trim()) return
     setMessage(null)
-    const payload: CreateRoundPayload = {
-      name: newName.trim(),
-      displayOrder: (rounds.length + 1),
-      roundType: newType,
-      categoryId,
-    }
     startTransition(async () => {
       try {
-        await createRound(payload)
+        const subjectId = await resolveSubjectId(newSubjectInput)
+        const payload: CreateRoundPayload = {
+          name: newName.trim(),
+          subjectId,
+          displayOrder: localRounds.length + 1,
+          roundType: newType,
+          categoryId,
+        }
+        const created = await createRound(payload)
+        setLocalRounds(prev => [...prev, created])
         setNewName('')
+        setNewSubjectInput('')
         setNewType('QuestionRound')
-        setMessage({ text: `Ronde "${newName.trim()}" aangemaakt.`, ok: true })
+        setMessage({ text: `Ronde "${created.name}" aangemaakt.`, ok: true })
       } catch (err) {
         setMessage({ text: 'Fout: ' + (err as Error).message, ok: false })
       }
@@ -60,11 +90,29 @@ export default function RoundList({
 
   function handleUpdate(e: React.FormEvent, id: number) {
     e.preventDefault()
-    if (!editData.name?.trim()) return
+    const name = editData.name?.trim()
+    if (!name) return
     setMessage(null)
+
     startTransition(async () => {
       try {
-        await updateRound(id, editData as CreateRoundPayload)
+        const subjectId = await resolveSubjectId(editData.subjectInput ?? '')
+        const payload: CreateRoundPayload = {
+          name,
+          subjectId,
+          displayOrder: editData.displayOrder ?? 1,
+          roundType: editData.roundType ?? 'QuestionRound',
+          categoryId: editData.categoryId ?? categoryId,
+        }
+        const updated = await updateRound(id, payload)
+        // If the API returns 204 (no body), fall back to the data we just sent
+        const updatedRound: RoundResponse = updated ?? {
+          id,
+          ...payload,
+          subjectName: subjects.find(s => s.id === subjectId)?.name ?? null,
+          categoryName: localRounds.find(r => r.id === id)?.categoryName ?? '',
+        }
+        setLocalRounds(prev => prev.map(r => r.id === id ? updatedRound : r))
         setEditId(null)
         setMessage({ text: 'Ronde bijgewerkt.', ok: true })
       } catch (err) {
@@ -79,6 +127,7 @@ export default function RoundList({
     startTransition(async () => {
       try {
         await deleteRound(id, categoryId)
+        setLocalRounds(prev => prev.filter(r => r.id !== id))
         setMessage({ text: `Ronde "${name}" verwijderd.`, ok: true })
       } catch (err) {
         setMessage({ text: 'Fout: ' + (err as Error).message, ok: false })
@@ -99,6 +148,17 @@ export default function RoundList({
           required
           className={`flex-1 min-w-40 ${inputCls}`}
         />
+        {/* Subject: free-text with datalist suggestions from existing subjects */}
+        <input
+          list="subjects-create"
+          value={newSubjectInput}
+          onChange={e => setNewSubjectInput(e.target.value)}
+          placeholder="Onderwerp… (bijv. Beroemde schilders)"
+          className={`flex-1 min-w-52 ${inputCls}`}
+        />
+        <datalist id="subjects-create">
+          {subjects.map(s => <option key={s.id} value={s.name} />)}
+        </datalist>
         <select value={newType} onChange={e => setNewType(e.target.value as RoundType)}
           className={inputCls}>
           {ROUND_TYPES.map(t => (
@@ -117,11 +177,11 @@ export default function RoundList({
         </p>
       )}
 
-      {rounds.length === 0 ? (
+      {localRounds.length === 0 ? (
         <p className="text-gray-500 dark:text-gray-400">Nog geen rondes. Maak er een aan hierboven.</p>
       ) : (
         <div className="space-y-3">
-          {rounds
+          {localRounds
             .slice()
             .sort((a, b) => a.displayOrder - b.displayOrder)
             .map(round => (
@@ -134,8 +194,20 @@ export default function RoundList({
                       value={editData.name ?? ''}
                       onChange={e => setEditData(d => ({ ...d, name: e.target.value }))}
                       required autoFocus
+                      placeholder="Rondenaam"
                       className={`flex-1 min-w-32 ${inputCls}`}
                     />
+                    {/* Subject: free-text + datalist for autocomplete; creates new if not found */}
+                    <input
+                      list="subjects-edit"
+                      value={editData.subjectInput ?? ''}
+                      onChange={e => setEditData(d => ({ ...d, subjectInput: e.target.value }))}
+                      placeholder="Onderwerp"
+                      className={`flex-1 min-w-40 ${inputCls}`}
+                    />
+                    <datalist id="subjects-edit">
+                      {subjects.map(s => <option key={s.id} value={s.name} />)}
+                    </datalist>
                     <input
                       type="number"
                       value={editData.displayOrder ?? 1}
@@ -144,7 +216,7 @@ export default function RoundList({
                       title="Volgorde"
                     />
                     <select
-                      value={editData.roundType ?? 'standard'}
+                      value={editData.roundType ?? 'QuestionRound'}
                       onChange={e => setEditData(d => ({ ...d, roundType: e.target.value as RoundType }))}
                       className={inputCls}>
                       {ROUND_TYPES.map(t => (
@@ -168,11 +240,14 @@ export default function RoundList({
                     <div className="flex-1">
                       <span className="font-semibold dark:text-gray-100">{round.name}</span>
                       <span className="text-xs text-gray-400 ml-2 font-mono">{round.roundType}</span>
+                      {round.subjectName && (
+                        <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5">{round.subjectName}</p>
+                      )}
                     </div>
                     <Link
                       href={`/admin/categories/${categoryId}/rounds/${round.id}`}
                       className="text-sm text-blue-600 dark:text-blue-400 underline">
-                      Vragen beheren →
+                      {round.roundType === 'PhotoRound' ? "Foto's beheren →" : 'Vragen beheren →'}
                     </Link>
                     <button onClick={() => startEdit(round)}
                       className="text-sm text-gray-500 dark:text-gray-400 border border-gray-300 dark:border-gray-600 px-3 py-1.5 rounded hover:bg-gray-50 dark:hover:bg-gray-800">

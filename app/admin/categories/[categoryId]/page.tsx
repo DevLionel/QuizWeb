@@ -1,5 +1,6 @@
 import { getCategoryById } from '../../../services/categoryService'
 import { getRoundsForCategory } from '../../../services/roundService'
+import { getSubjects } from '../../../services/subjectService'
 import RoundList from '../../components/RoundList'
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
@@ -13,9 +14,10 @@ export default async function AdminCategoryPage({
   const categoryId = Number(categoryIdStr)
   if (isNaN(categoryId)) notFound()
 
-  const [category, rounds] = await Promise.all([
+  const [category, rounds, subjects] = await Promise.all([
     getCategoryById(categoryId),
     getRoundsForCategory(categoryId),
+    getSubjects(),
   ])
 
   return (
@@ -39,7 +41,7 @@ export default async function AdminCategoryPage({
         <p className="text-sm text-gray-500 dark:text-gray-400 mb-6">
           Elke ronde bevat vragen. Klik op &quot;Vragen beheren&quot; om vragen toe te voegen of te bewerken.
         </p>
-        <RoundList rounds={rounds} categoryId={categoryId} />
+        <RoundList rounds={rounds} categoryId={categoryId} subjects={subjects} />
       </section>
     </main>
   )

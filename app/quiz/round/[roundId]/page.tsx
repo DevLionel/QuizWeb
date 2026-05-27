@@ -34,7 +34,7 @@ export default async function QuizRoundPage({
     return (
       <div className="min-h-screen py-10 px-4">
         {backLink}
-        <PhotoRoundEngine questions={questions} roundName={round.name} />
+        <PhotoRoundEngine questions={questions} roundName={round.name} subject={round.subjectName ?? undefined} />
       </div>
     )
   }
@@ -48,7 +48,12 @@ export default async function QuizRoundPage({
         >
           ← Terug naar {round.categoryName}
         </Link>
-        <span className="text-2xl font-medium text-green-600">{round.name}</span>
+        <div className="text-right">
+          <span className="text-2xl font-medium text-green-600">{round.name}</span>
+          {round.subjectName && (
+            <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5">{round.subjectName}</p>
+          )}
+        </div>
       </div>
       <QuizEngine initialQuestions={questions} />
     </div>

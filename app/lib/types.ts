@@ -21,9 +21,16 @@ export interface QuestionResponse {
   answers: AnswerResponse[]
 }
 
+export interface SubjectResponse {
+  id: number
+  name: string
+}
+
 export interface RoundResponse {
   id: number
   name: string
+  subjectId: number | null
+  subjectName: string | null
   displayOrder: number
   roundType: RoundType
   categoryId: number
@@ -43,7 +50,7 @@ export interface AnswerPayload {
   displayOrder: number
 }
 
-export type QuestionType = 'MultipleChoice' | 'TrueFalse' | 'LowerHigher' | 'LessMore'
+export type QuestionType = 'MultipleChoice' | 'TrueFalse' | 'LowerHigher' | 'LessMore' | 'Photo'
 
 export interface CreateQuestionPayload {
   text: string
@@ -58,6 +65,7 @@ export type RoundType = 'QuestionRound' | 'PhotoRound' | 'PassportRound'
 
 export interface CreateRoundPayload {
   name: string
+  subjectId: number | null
   displayOrder: number
   roundType: RoundType
   categoryId: number

@@ -69,7 +69,7 @@ export default function AddPhotoCardForm({ roundId, questionCount }: Props) {
 
     const payload: CreateQuestionPayload = {
       text: answerText,
-      questionType: 'MultipleChoice',
+      questionType: 'Photo',
       roundId,
       mediaType: 'Image',
       mediaUrl: imageUrl.trim(),
