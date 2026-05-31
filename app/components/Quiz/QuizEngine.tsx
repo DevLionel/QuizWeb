@@ -26,13 +26,13 @@ export default function QuizEngine({ initialQuestions }: Props) {
   const [givenAnswers, setGivenAnswers] = useState<Record<number, GivenAnswer>>({});
   // true while a YouTube video is still playing — timer is held
   const [timerHeld, setTimerHeld] = useState(
-    () => initialQuestions[0]?.mediaType === "YouTubeClip" || initialQuestions[0]?.mediaType === "YouTubeShort"
+    () => ["YouTubeClip", "YouTubeShort", "Mp4"].includes(initialQuestions[0]?.mediaType ?? "")
   );
 
   // On question change: reset timer and hold it if the new question has a YouTube clip
   useEffect(() => {
     setTimeLeft(TIMER_SECONDS);
-    setTimerHeld(questions[currentIndex]?.mediaType === "YouTubeClip" || questions[currentIndex]?.mediaType === "YouTubeShort");
+    setTimerHeld(["YouTubeClip", "YouTubeShort", "Mp4"].includes(questions[currentIndex]?.mediaType ?? ""));
   }, [currentIndex, questions]);
 
   // Timer: countdown and auto-advance (paused while timerHeld or already answered)

@@ -55,8 +55,8 @@ function validateUrl(type: MediaType, url: string): string | null {
     if (!isImage) return 'URL moet eindigen met een afbeeldingsextensie (.jpg, .png, .webp, …)'
   }
   if (type === 'Mp4') {
-    const isMedia = /\.(mp4|mp3|wav|ogg|m4a|aac|flac|webm)(\?.*)?$/i.test(url)
-    if (!isMedia) return 'URL moet eindigen met een media-extensie (.mp4, .mp3, .wav, …)'
+    const isMedia = /\.(mp4|mov|mp3|wav|ogg|m4a|aac|flac|webm)(\?.*)?$/i.test(url)
+    if (!isMedia) return 'URL moet eindigen met een media-extensie (.mp4, .mov, .mp3, .wav, …)'
   }
   return null
 }
@@ -142,7 +142,7 @@ function MediaFields({
             <div className="flex items-center gap-2">
               <label className="text-xs text-gray-500 dark:text-gray-400">Of upload bestand:</label>
               <input type="file"
-                accept={value.type === 'Image' ? 'image/*' : 'video/*,audio/*'}
+                accept={value.type === 'Image' ? 'image/*' : 'video/*,.mov,audio/*'}
                 onChange={handleFileUpload} disabled={uploading}
                 className="text-xs" />
               {uploading && <span className="text-xs text-blue-500">Uploading…</span>}

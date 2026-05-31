@@ -103,10 +103,25 @@ export default function MediaRenderer({ mediaType, mediaUrl, onVideoEnded }: Pro
   }
 
   if (mediaType === "Mp4") {
+    const isAudio = /\.(mp3|wav|ogg|m4a|aac|flac)(\?.*)?$/i.test(mediaUrl);
+    const mimeType = /\.mov(\?.*)?$/i.test(mediaUrl) ? "video/quicktime"
+                   : /\.mp4(\?.*)?$/i.test(mediaUrl) ? "video/mp4"
+                   : undefined;
+
+    if (isAudio) {
+      return (
+        <div className="w-full mb-4">
+          <audio controls autoPlay onEnded={onVideoEnded} className="w-full">
+            <source src={mediaUrl} />
+          </audio>
+        </div>
+      );
+    }
+
     return (
-      <div className="w-full mb-4">
-        <video controls className="w-full rounded-lg">
-          <source src={mediaUrl} />
+      <div className="w-full aspect-video rounded-xl overflow-hidden mb-4">
+        <video controls autoPlay onEnded={onVideoEnded} className="w-full h-full">
+          <source src={mediaUrl} type={mimeType} />
           Je browser ondersteunt geen video.
         </video>
       </div>
