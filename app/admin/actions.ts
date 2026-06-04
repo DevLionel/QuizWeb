@@ -99,3 +99,12 @@ export async function uploadMediaFile(
 ): Promise<string> {
   return uploadMedia(kind, formData)
 }
+
+export async function listServerImages(
+  subPath: string
+): Promise<{ name: string; url: string }[]> {
+  const base = process.env.QUIZ_API_BASE_URL ?? 'http://192.168.2.50:5059'
+  const files = await apiGet<string[]>('/api/media/browse', { path: subPath })
+  const encodedPath = subPath.split('/').map(encodeURIComponent).join('/')
+  return files.map(name => ({ name, url: `${base}/static/${encodedPath}/${encodeURIComponent(name)}` }))
+}

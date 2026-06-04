@@ -2,6 +2,7 @@
 import { useState, useTransition } from 'react'
 import { saveQuestion, uploadMediaFile } from '../actions'
 import type { CreateQuestionPayload, AnswerPayload } from '../../lib/types'
+import ServerFilePicker from './ServerFilePicker'
 
 type QuestionType = 'MultipleChoice' | 'TrueFalse' | 'LowerHigher' | 'LessMore'
 type MediaType = 'YouTubeClip' | 'YouTubeShort' | 'Image' | 'Mp4'
@@ -73,14 +74,17 @@ function MediaFields({
 }) {
   const [urlError, setUrlError] = useState<string | null>(null)
   const [uploading, setUploading] = useState(false)
+  const [showPicker, setShowPicker] = useState(false)
 
   function selectType(t: MediaType) {
     if (value?.type === t) { onChange(null); setUrlError(null) }
     else { onChange({ type: t, url: '' }); setUrlError(null) }
   }
 
-  function handleUrlChange(url: string) {
+  function handleUrlChange(raw: string) {
     if (!value) return
+    // Encode spaces and other unsafe characters while preserving URL structure
+    const url = raw.replace(/ /g, '%20')
     setUrlError(validateUrl(value.type, url))
     onChange({ ...value, url })
   }
@@ -139,14 +143,29 @@ function MediaFields({
             className={`block w-full border rounded p-2 text-sm dark:bg-gray-800 dark:text-gray-100 ${urlError ? 'border-red-400' : 'border-gray-300 dark:border-gray-600'}`}
           />
           {(value.type === 'Image' || value.type === 'Mp4') && (
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 flex-wrap">
               <label className="text-xs text-gray-500 dark:text-gray-400">Of upload bestand:</label>
               <input type="file"
                 accept={value.type === 'Image' ? 'image/*' : 'video/*,.mov,audio/*'}
                 onChange={handleFileUpload} disabled={uploading}
                 className="text-xs" />
               {uploading && <span className="text-xs text-blue-500">Uploading…</span>}
+              {value.type === 'Image' && (
+                <button
+                  type="button"
+                  onClick={() => setShowPicker(true)}
+                  className="text-xs px-3 py-1 rounded border border-gray-300 dark:border-gray-600 text-gray-600 dark:text-gray-300 hover:border-blue-400 hover:text-blue-600 transition-colors"
+                >
+                  📁 Bladeren op server
+                </button>
+              )}
             </div>
+          )}
+          {showPicker && (
+            <ServerFilePicker
+              onSelect={url => { onChange({ ...value, url }); setUrlError(null) }}
+              onClose={() => setShowPicker(false)}
+            />
           )}
           {urlError && <p className="text-red-500 text-xs">{urlError}</p>}
           {!urlError && value.url && <p className="text-green-600 text-xs">Geldige {value.type} URL</p>}

@@ -148,3 +148,135 @@ return Ok($"{baseUrl}/videos/{outputName}");
 | NuGet package? | **`FFMpegCore`** + `ffmpeg` binary on the server OS. |
 | Storage? | Static directory on the home server, served via `UseStaticFiles` in the .NET API. Return the HTTP URL as `mediaUrl`. |
 | Frontend changes? | None — already complete. |
+
+---
+
+# Server File Browser — Pick Images from Home Server
+
+## Context
+
+Images for quiz rounds are pre-stored on the home server at a path like:
+
+```
+/mnt/extern/Media/Quiz/WK_Quiz/Round_01/Pictures
+```
+
+Instead of uploading files via the API, the admin UI now has a **"📁 Bladeren op server"** button that opens a thumbnail grid of files already on the server.
+
+---
+
+## Files Changed / Created
+
+| File | Change |
+|---|---|
+| `app/admin/actions.ts` | Added `listServerImages(subPath)` server action |
+| `app/admin/components/ServerFilePicker.tsx` | New modal component with thumbnail grid |
+| `app/admin/components/AddQuestionForm.tsx` | Added browse button + picker integration in `MediaFields` |
+
+---
+
+## How It Works
+
+### Data flow
+
+```
+User clicks "Bladeren op server"
+  → ServerFilePicker opens (modal)
+  → User confirms path (default: Quiz/WK_Quiz/Round_01/Pictures) and clicks Laden
+  → listServerImages(subPath) server action
+      → GET /api/media/browse?path=Quiz/WK_Quiz/Round_01/Pictures   (new .NET endpoint)
+      → receives string[] of filenames
+      → constructs full URLs: {QUIZ_API_BASE_URL}/static/{subPath}/{filename}
+  → Thumbnail grid renders
+  → User clicks a photo → blue checkmark
+  → "Gebruik deze foto" → URL is written into the media URL field
+```
+
+### URL pattern
+
+```
+http://192.168.2.50:5059/static/Quiz/WK_Quiz/Round_01/Pictures/foto.jpg
+                         ↑       ↑
+                    /static      relative path under /mnt/extern/Media
+```
+
+The URL is stored as `mediaUrl` in the question, identical to any other image URL.
+
+---
+
+## Required Backend Changes (.NET)
+
+### 1. Serve `/mnt/extern/Media` as static files
+
+Add to `Program.cs` **before** `app.Run()`:
+
+```csharp
+app.UseStaticFiles(new StaticFileOptions {
+    FileProvider = new PhysicalFileProvider("/mnt/extern/Media"),
+    RequestPath  = "/static"
+});
+```
+
+### 2. Add directory listing endpoint
+
+```csharp
+app.MapGet("/api/media/browse", (string path) => {
+    var folder = Path.Combine("/mnt/extern/Media", path.TrimStart('/'));
+    if (!Directory.Exists(folder)) return Results.NotFound();
+    var files = Directory.GetFiles(folder)
+        .Where(f => new[] { ".jpg", ".jpeg", ".png", ".webp", ".gif", ".avif" }
+            .Contains(Path.GetExtension(f).ToLower()))
+        .Select(Path.GetFileName)
+        .OrderBy(x => x)
+        .ToArray();
+    return Results.Ok(files);
+});
+```
+
+Returns a `string[]` of image filenames (filtered to image extensions, sorted A–Z).
+
+---
+
+## Frontend Details
+
+### `listServerImages` server action (`app/admin/actions.ts`)
+
+```typescript
+export async function listServerImages(
+  subPath: string
+): Promise<{ name: string; url: string }[]> {
+  const base = process.env.QUIZ_API_BASE_URL ?? 'http://192.168.2.50:5059'
+  const files = await apiGet<string[]>('/api/media/browse', { path: subPath })
+  const encodedPath = subPath.split('/').map(encodeURIComponent).join('/')
+  return files.map(name => ({ name, url: `${base}/static/${encodedPath}/${encodeURIComponent(name)}` }))
+}
+```
+
+- Runs server-side only (uses `QUIZ_API_BASE_URL` env var, no `NEXT_PUBLIC_` prefix needed).
+- Constructs full HTTP URLs before sending to the client.
+- Filenames and folder names with spaces are percent-encoded (`Giovanni Galli.jpg` → `Giovanni%20Galli.jpg`). The displayed caption always shows the original readable name.
+
+### `ServerFilePicker` component
+
+- Modal overlay with a path input (editable, default `Quiz/WK_Quiz/Round_01/Pictures`).
+- **Laden** button fetches the file list; Enter key also triggers load.
+- 3–4 column thumbnail grid; selected image gets a blue border + ✓ badge.
+- **Gebruik deze foto** writes the URL back into the form and closes the modal.
+- The path input accepts any subpath under `/mnt/extern/Media`, so it works for all rounds (`Round_02/Pictures`, etc.).
+
+### Trigger in `AddQuestionForm.tsx`
+
+The **📁 Bladeren op server** button appears only when media type is **Foto (Image)**. It sits alongside the existing file upload input.
+
+---
+
+## Verification Checklist
+
+1. Add the two .NET snippets above and restart the API.
+2. Open `http://192.168.2.50:5059/static/Quiz/WK_Quiz/Round_01/Pictures/<filename>` in a browser — image should load.
+3. Open `/admin/categories/{id}/rounds/{rid}`, add a question, select **Foto** media type.
+4. Click **📁 Bladeren op server** → modal opens.
+5. Click **Laden** → thumbnails appear.
+6. Select a photo → blue checkmark visible.
+7. Click **Gebruik deze foto** → URL filled in the form.
+8. Save the question → verify `mediaUrl` is set correctly in the API response.
