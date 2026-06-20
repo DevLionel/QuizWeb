@@ -33,6 +33,7 @@ export interface RoundResponse {
   subjectName: string | null
   displayOrder: number
   roundType: RoundType
+  playMode: PlayMode
   categoryId: number
   categoryName: string
 }
@@ -63,11 +64,14 @@ export interface CreateQuestionPayload {
 
 export type RoundType = 'QuestionRound' | 'PhotoRound' | 'PassportRound'
 
+export type PlayMode = 'Individual' | 'Team'
+
 export interface CreateRoundPayload {
   name: string
   subjectId: number | null
   displayOrder: number
   roundType: RoundType
+  playMode: PlayMode
   categoryId: number
 }
 

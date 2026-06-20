@@ -28,7 +28,7 @@ export default function TrueFalseTemplate({ question, onAnswer, givenAnswer, onV
         mediaUrl={question.mediaUrl}
         onVideoEnded={onVideoEnded}
       />
-      <p className="text-lg font-semibold text-center mb-2">{question.questionText}</p>
+      <p className="text-xl font-semibold text-center mb-2">{question.questionText}</p>
       {question.answers.map((a) => {
         let color = "bg-green-600 hover:bg-green-700 dark:bg-green-700 dark:hover:bg-green-600";
         if (isLocked) {
@@ -41,7 +41,7 @@ export default function TrueFalseTemplate({ question, onAnswer, givenAnswer, onV
             key={a.id}
             onClick={() => handleClick(a.id, a.isCorrect)}
             disabled={isLocked}
-            className={`text-white px-6 py-3 rounded-2xl font-semibold transition-all duration-200 ${
+            className={`text-white px-6 py-4 rounded-2xl font-semibold transition-all duration-200 ${
               isLocked ? "cursor-default" : "hover:scale-105 active:scale-95"
             } ${color}`}
           >

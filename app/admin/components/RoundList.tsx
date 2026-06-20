@@ -2,7 +2,7 @@
 import { useState, useTransition } from 'react'
 import Link from 'next/link'
 import { createRound, updateRound, deleteRound, findOrCreateSubject } from '../actions'
-import type { RoundResponse, CreateRoundPayload, RoundType, SubjectResponse } from '../../lib/types'
+import type { RoundResponse, CreateRoundPayload, RoundType, PlayMode, SubjectResponse } from '../../lib/types'
 
 const ROUND_TYPES: { value: RoundType; label: string }[] = [
   { value: 'QuestionRound', label: 'Vragenronde' },
@@ -31,6 +31,7 @@ export default function RoundList({
   const [newName, setNewName] = useState('')
   const [newSubjectInput, setNewSubjectInput] = useState('')
   const [newType, setNewType] = useState<RoundType>('QuestionRound')
+  const [newPlayMode, setNewPlayMode] = useState<PlayMode>('Individual')
   const [isPending, startTransition] = useTransition()
   const [message, setMessage] = useState<{ text: string; ok: boolean } | null>(null)
 
@@ -42,6 +43,7 @@ export default function RoundList({
       subjectInput: round.subjectName ?? '',
       displayOrder: round.displayOrder,
       roundType: round.roundType,
+      playMode: round.playMode,
       categoryId,
     })
   }
@@ -74,6 +76,7 @@ export default function RoundList({
           subjectId,
           displayOrder: localRounds.length + 1,
           roundType: newType,
+          playMode: newPlayMode,
           categoryId,
         }
         const created = await createRound(payload)
@@ -81,6 +84,7 @@ export default function RoundList({
         setNewName('')
         setNewSubjectInput('')
         setNewType('QuestionRound')
+        setNewPlayMode('Individual')
         setMessage({ text: `Ronde "${created.name}" aangemaakt.`, ok: true })
       } catch (err) {
         setMessage({ text: 'Fout: ' + (err as Error).message, ok: false })
@@ -102,6 +106,7 @@ export default function RoundList({
           subjectId,
           displayOrder: editData.displayOrder ?? 1,
           roundType: editData.roundType ?? 'QuestionRound',
+          playMode: editData.playMode ?? 'Individual',
           categoryId: editData.categoryId ?? categoryId,
         }
         const updated = await updateRound(id, payload)
@@ -165,6 +170,11 @@ export default function RoundList({
             <option key={t.value} value={t.value}>{t.label}</option>
           ))}
         </select>
+        <select value={newPlayMode} onChange={e => setNewPlayMode(e.target.value as PlayMode)}
+          className={inputCls}>
+          <option value="Individual">Individueel</option>
+          <option value="Team">Team</option>
+        </select>
         <button type="submit" disabled={isPending}
           className="bg-green-600 text-white px-4 py-2 rounded text-sm disabled:opacity-50">
           + Ronde toevoegen
@@ -223,6 +233,13 @@ export default function RoundList({
                         <option key={t.value} value={t.value}>{t.label}</option>
                       ))}
                     </select>
+                    <select
+                      value={editData.playMode ?? 'Individual'}
+                      onChange={e => setEditData(d => ({ ...d, playMode: e.target.value as PlayMode }))}
+                      className={inputCls}>
+                      <option value="Individual">Individueel</option>
+                      <option value="Team">Team</option>
+                    </select>
                     <button type="submit" disabled={isPending}
                       className="bg-blue-600 text-white px-3 py-2 rounded text-sm disabled:opacity-50">
                       Opslaan
@@ -240,6 +257,13 @@ export default function RoundList({
                     <div className="flex-1">
                       <span className="font-semibold dark:text-gray-100">{round.name}</span>
                       <span className="text-xs text-gray-400 ml-2 font-mono">{round.roundType}</span>
+                      <span className={`text-xs ml-2 px-1.5 py-0.5 rounded font-semibold ${
+                        round.playMode === 'Team'
+                          ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300'
+                          : 'bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-300'
+                      }`}>
+                        {round.playMode === 'Team' ? 'Team' : 'Individueel'}
+                      </span>
                       {round.subjectName && (
                         <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5">{round.subjectName}</p>
                       )}

@@ -49,12 +49,21 @@ export default async function CategoryPage({
                     <p className="text-xl text-gray-500 dark:text-gray-400 mt-1">{round.subjectName}</p>
                   )}
                 </div>
-                <Link
-                  href={`/quiz/round/${round.id}`}
-                  className="btn-quiz px-9 py-4 text-base"
-                >
-                  Start
-                </Link>
+                <div className="flex flex-col items-end gap-2">
+                  <span className={`text-xs font-semibold px-2.5 py-1 rounded-full ${
+                    round.playMode === 'Team'
+                      ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300'
+                      : 'bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-300'
+                  }`}>
+                    {round.playMode === 'Team' ? 'Team' : 'Individueel'}
+                  </span>
+                  <Link
+                    href={`/quiz/round/${round.id}`}
+                    className="btn-quiz px-9 py-4 text-base"
+                  >
+                    Start
+                  </Link>
+                </div>
               </div>
             ))}
         </div>
