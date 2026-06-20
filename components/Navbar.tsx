@@ -2,9 +2,6 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { useTheme } from 'next-themes'
-import { useEffect, useState } from 'react'
-import { Sun, Moon } from 'lucide-react'
 
 const navItems = [
   { label: 'Dashboard', href: '/' },
@@ -14,14 +11,6 @@ const navItems = [
 
 export function Navbar() {
   const pathname = usePathname()
-  const { resolvedTheme, setTheme } = useTheme()
-  const [mounted, setMounted] = useState(false)
-
-  useEffect(() => {
-    setMounted(true)
-  }, [])
-
-  const isDark = resolvedTheme === 'dark'
 
   return (
     <header className="fixed top-0 left-0 right-0 z-50 h-14">
@@ -60,22 +49,6 @@ export function Navbar() {
           })}
         </ul>
 
-        {/* Theme toggle */}
-        <button
-          onClick={() => setTheme(isDark ? 'light' : 'dark')}
-          aria-label="Toggle theme"
-          className="w-8 h-8 flex items-center justify-center rounded-lg
-            text-gray-500 dark:text-gray-400
-            hover:bg-gray-100 dark:hover:bg-white/10
-            hover:text-gray-900 dark:hover:text-white
-            transition-colors"
-        >
-          {mounted ? (
-            isDark ? <Sun size={16} strokeWidth={1.5} /> : <Moon size={16} strokeWidth={1.5} />
-          ) : (
-            <span className="w-4 h-4" />
-          )}
-        </button>
       </nav>
     </header>
   )

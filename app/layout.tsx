@@ -2,7 +2,6 @@ import type { Metadata } from 'next'
 import localFont from 'next/font/local'
 import { Geist_Mono } from 'next/font/google'
 import './globals.css'
-import { ThemeProvider } from '@/components/ui/theme-provider'
 import { Navbar } from '@/components/Navbar'
 import { DataGridBackground } from '@/components/ui/data-grid-background'
 
@@ -28,17 +27,15 @@ export default function RootLayout({
   children: React.ReactNode
 }>) {
   return (
-    <html lang="nl" suppressHydrationWarning>
+    <html lang="nl" className="dark">
       <body className={`${oxanium.variable} ${geistMono.variable} antialiased`}>
-        <ThemeProvider attribute="class" defaultTheme="light" disableTransitionOnChange>
-          <DataGridBackground />
-          <div className="relative z-10 flex flex-col min-h-screen">
-            <Navbar />
-            <div className="pt-14">
-              {children}
-            </div>
+        <DataGridBackground />
+        <div className="relative z-10 flex flex-col min-h-screen">
+          <Navbar />
+          <div className="pt-14">
+            {children}
           </div>
-        </ThemeProvider>
+        </div>
       </body>
     </html>
   )

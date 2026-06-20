@@ -1,13 +1,12 @@
 @import "tailwindcss";
 
-/* Class-based dark mode for next-themes */
 @custom-variant dark (&:is(.dark, .dark *));
 
 :root {
-  --background: #f9f9f9;
-  --foreground: #101519;
-  --surface-container-low: #f3f3f3;
-  --surface-container-high: #e2e2e2;
+  --background: #0f1418;
+  --foreground: #dfe3e9;
+  --surface-container-low: #171c20;
+  --surface-container-high: #262b2f;
 
   /* Data grid color palette (HSL) */
   --grid-green:  142 76% 25%;   /* #15803d */
@@ -15,13 +14,6 @@
   --grid-cyan:   192 79% 31%;   /* #0e7490 */
   --grid-yellow: 37  91% 33%;   /* #a16207 */
   --grid-orange: 17  88% 41%;   /* #c2410c */
-}
-
-.dark {
-  --background: #0f1418;
-  --foreground: #dfe3e9;
-  --surface-container-low: #171c20;
-  --surface-container-high: #262b2f;
 }
 
 @theme inline {
