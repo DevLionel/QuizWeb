@@ -33,7 +33,7 @@ export interface RoundResponse {
   subjectName: string | null
   displayOrder: number
   roundType: RoundType
-  playMode: PlayMode
+  playMode?: PlayMode
   categoryId: number
   categoryName: string
 }

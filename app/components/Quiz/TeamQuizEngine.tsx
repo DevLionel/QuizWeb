@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import React, { useState } from "react";
 import { Question } from "../../lib/types";
 import MediaRenderer from "./MediaRenderer";
 
@@ -9,23 +9,49 @@ interface Props {
   roundName: string;
 }
 
+function isVideoMedia(q: Question): boolean {
+  if (!q.mediaType || !q.mediaUrl) return false;
+  if (q.mediaType === "YouTubeClip" || q.mediaType === "YouTubeShort") return true;
+  if (q.mediaType === "Mp4") {
+    return !/\.(mp3|wav|ogg|m4a|aac|flac)(\?.*)?$/i.test(q.mediaUrl);
+  }
+  return false;
+}
+
 export default function TeamQuizEngine({ initialQuestions, roundName }: Props) {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [revealed, setRevealed] = useState(false);
+  const [mediaPhase, setMediaPhase] = useState<boolean>(
+    () => initialQuestions.length > 0 && isVideoMedia(initialQuestions[0])
+  );
+  const [qaAnimKey, setQaAnimKey] = useState(0);
+  const [watchedVideos, setWatchedVideos] = useState<Set<number>>(new Set());
+
+  const enterQaPhase = () => {
+    setWatchedVideos((prev) => new Set(prev).add(currentIndex));
+    setMediaPhase(false);
+    setQaAnimKey((k) => k + 1);
+  };
 
   const goToPrevious = () => {
-    setCurrentIndex((i) => Math.max(0, i - 1));
+    const prev = Math.max(0, currentIndex - 1);
+    setCurrentIndex(prev);
     setRevealed(false);
+    setMediaPhase(false);
   };
 
   const goToNext = () => {
-    setCurrentIndex((i) => Math.min(initialQuestions.length - 1, i + 1));
+    const next = Math.min(initialQuestions.length - 1, currentIndex + 1);
+    setCurrentIndex(next);
     setRevealed(false);
+    setMediaPhase(isVideoMedia(initialQuestions[next]) && !watchedVideos.has(next));
   };
 
   const restartQuiz = () => {
     setCurrentIndex(0);
     setRevealed(false);
+    setWatchedVideos(new Set());
+    setMediaPhase(initialQuestions.length > 0 && isVideoMedia(initialQuestions[0]));
   };
 
   if (initialQuestions.length === 0) {
@@ -56,6 +82,36 @@ export default function TeamQuizEngine({ initialQuestions, roundName }: Props) {
   const question = initialQuestions[currentIndex];
   const isLast = currentIndex === initialQuestions.length - 1;
 
+  if (mediaPhase) {
+    return (
+      <div className="w-full max-w-6xl mx-auto space-y-4">
+        <div className="flex items-center justify-between">
+          <span className="text-xl text-gray-500 dark:text-gray-400 font-medium">
+            Vraag {currentIndex + 1} / {initialQuestions.length}
+          </span>
+          <span className="text-2xl font-bold text-green-600">{roundName}</span>
+        </div>
+
+        <div className="w-full aspect-video rounded-2xl overflow-hidden shadow-2xl">
+          <MediaRenderer
+            mediaType={question.mediaType}
+            mediaUrl={question.mediaUrl}
+            onVideoEnded={enterQaPhase}
+          />
+        </div>
+
+        <div className="flex justify-end">
+          <button
+            onClick={enterQaPhase}
+            className="py-3 px-8 bg-green-600 hover:bg-green-700 text-white rounded-2xl text-lg font-semibold transition-colors"
+          >
+            Toon Vraag →
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="max-w-4xl mx-auto space-y-6">
       {/* Header row */}
@@ -67,16 +123,20 @@ export default function TeamQuizEngine({ initialQuestions, roundName }: Props) {
       </div>
 
       {/* Question card */}
-      <div className="bg-white/70 dark:bg-white/5 backdrop-blur-sm shadow-lg rounded-3xl p-10 w-full border border-black/6 dark:border-white/8">
-        {/* Media */}
+      <div key={qaAnimKey} className="bg-white/70 dark:bg-white/5 backdrop-blur-sm shadow-lg rounded-3xl p-10 w-full border border-black/6 dark:border-white/8">
+        {/* Media — no autoplay here; quizmaster controls playback */}
         <MediaRenderer
           mediaType={question.mediaType}
           mediaUrl={question.mediaUrl}
           onVideoEnded={() => {}}
+          autoPlay={false}
         />
 
         {/* Question text */}
-        <p className="text-4xl font-bold text-center mt-6 mb-8 leading-snug">
+        <p
+          className={`text-4xl font-bold text-center mt-6 mb-8 leading-snug${qaAnimKey > 0 ? " slide-in-up" : ""}`}
+          style={qaAnimKey > 0 ? ({ "--slide-delay": "200ms" } as React.CSSProperties) : undefined}
+        >
           {question.questionText}
         </p>
 
@@ -90,7 +150,7 @@ export default function TeamQuizEngine({ initialQuestions, roundName }: Props) {
               : "grid-cols-3"
           }`}
         >
-          {question.answers.map((answer) => {
+          {question.answers.map((answer, i) => {
             let classes =
               "py-5 px-6 rounded-2xl text-2xl font-semibold text-center transition-all duration-300 border-2 ";
 
@@ -105,8 +165,14 @@ export default function TeamQuizEngine({ initialQuestions, roundName }: Props) {
                 "bg-gray-200 dark:bg-white/10 text-gray-400 dark:text-gray-500 border-transparent opacity-50";
             }
 
+            if (qaAnimKey > 0) classes += " slide-in-up";
+
             return (
-              <div key={answer.id} className={classes}>
+              <div
+                key={answer.id}
+                className={classes}
+                style={qaAnimKey > 0 ? ({ "--slide-delay": `${400 + i * 200}ms` } as React.CSSProperties) : undefined}
+              >
                 {answer.answerText}
               </div>
             );

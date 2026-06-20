@@ -1,41 +1,76 @@
-# API Architecture: Ondersteuning voor Individual & Team Modus
+# API Architectuur: Ondersteuning voor Individual & Team Modus
 
 ## Ontwerpprincipe
 
-Een ronde is **altijd** voor één modus: Individueel of Team. De keuze wordt gemaakt bij het aanmaken van de ronde en kan worden bijgewerkt, maar een ronde is nooit voor beide tegelijk. Dit is een ontwerptijdsbeslissing — niet een keuze die de speler of quizmaster maakt bij het starten.
+Een ronde is **altijd** voor één modus: Individueel of Team. De keuze wordt gemaakt bij het aanmaken van de ronde en kan worden bijgewerkt. Dit is een ontwerpbeslissing — niet een keuze die de speler maakt bij het starten.
+
+---
+
+## Huidige status
+
+| Component | Status |
+|---|---|
+| Frontend stuurt `playMode` mee in POST/PUT | ✅ Geïmplementeerd |
+| Admin dropdown om modus te kiezen | ✅ Geïmplementeerd |
+| Modus-badge op categorieënpagina | ✅ Geïmplementeerd |
+| API retourneert `playMode` in GET responses | ❌ Nog niet geïmplementeerd |
+| API slaat `playMode` op bij POST/PUT | ❌ Nog niet geïmplementeerd |
+
+**Tijdelijke workaround:** Zolang de API `playMode` niet retourneert, bevat `app/config/teamRounds.ts` een hardgecodeerde set round-ID's die als Team-modus worden beschouwd. De routing checkt beide bronnen:
+
+```typescript
+if (round.playMode === 'Team' || TEAM_ROUND_IDS.has(round.id)) {
+  // TeamQuizEngine
+}
+```
+
+Zodra de API `playMode` correct retourneert, kan `app/config/teamRounds.ts` worden verwijderd.
 
 ---
 
 ## Vereiste API-wijziging: `playMode` op Round
 
-### Backend
-
-Voeg een kolom toe aan de Rounds-tabel:
+### Stap 1 — Database
 
 ```sql
 ALTER TABLE Rounds ADD COLUMN play_mode VARCHAR(20) NOT NULL DEFAULT 'Individual';
--- Waarden: 'Individual' | 'Team'
+-- Geldige waarden: 'Individual' | 'Team'
 ```
 
-Voeg het veld toe aan de Round-entiteit en alle relevante DTO's:
+### Stap 2 — C# entiteit en DTO's
 
 ```csharp
-// RoundDto / RoundResponse
+// Round entiteit
+public string PlayMode { get; set; } = "Individual";
+
+// RoundResponse / RoundDto  — zodat GET endpoints het veld teruggeven
+public string PlayMode { get; set; } = "Individual";
+
+// CreateRoundRequest  — zodat POST het veld accepteert
+public string PlayMode { get; set; } = "Individual";
+
+// UpdateRoundRequest  — zodat PUT het veld accepteert
 public string PlayMode { get; set; } = "Individual";
 ```
 
-Zorg dat alle vier round-endpoints het veld respecteren:
+Voeg validatie toe: alleen `'Individual'` en `'Team'` zijn geldige waarden (zie hoe `roundType` wordt gevalideerd voor het patroon).
 
-| Endpoint | Gedrag |
+### Stap 3 — Endpoints
+
+| Endpoint | Wijziging |
 |---|---|
-| `GET /api/Rounds?categoryId=N` | Geeft `playMode` terug per ronde |
-| `GET /api/Rounds/{id}` | Geeft `playMode` terug |
-| `POST /api/Rounds` | Accepteert `playMode` in de body |
-| `PUT /api/Rounds/{id}` | Accepteert `playMode` in de body |
+| `GET /api/Rounds?categoryId=N` | Geef `playMode` terug per ronde |
+| `GET /api/Rounds/{id}` | Geef `playMode` terug |
+| `POST /api/Rounds` | Accepteer en sla `playMode` op (default `'Individual'`) |
+| `PUT /api/Rounds/{id}` | Accepteer en sla `playMode` op |
 
-### Frontend — `app/lib/types.ts`
+---
+
+## Frontend TypeScript (huidig)
 
 ```typescript
+// app/lib/types.ts
+
 export type PlayMode = 'Individual' | 'Team'
 
 export interface RoundResponse {
@@ -45,7 +80,7 @@ export interface RoundResponse {
   subjectName: string | null
   displayOrder: number
   roundType: RoundType
-  playMode: PlayMode   // ← nieuw
+  playMode?: PlayMode   // optioneel — API retourneert dit nog niet
   categoryId: number
   categoryName: string
 }
@@ -55,83 +90,43 @@ export interface CreateRoundPayload {
   subjectId: number | null
   displayOrder: number
   roundType: RoundType
-  playMode: PlayMode   // ← nieuw
+  playMode: PlayMode    // altijd meegestuurd naar de API
   categoryId: number
 }
 ```
 
 ---
 
-## Hoe de frontend de modus gebruikt
+## Frontend aanpassingen NA de API-update
 
-### Rondenspagina (`app/quiz/round/[roundId]/page.tsx`)
+Zodra de API `playMode` correct retourneert zijn slechts twee kleine wijzigingen nodig:
 
-Geen URL-parameter meer nodig. De pagina leest `round.playMode` direct:
+### 1. `app/lib/types.ts` — maak `playMode` verplicht
 
-```tsx
-if (round.playMode === 'Team') {
-  return <TeamQuizEngine initialQuestions={questions} roundName={round.name} />
-}
-// standaard → Individueel
-return <QuizEngine initialQuestions={questions} />
+```typescript
+playMode: PlayMode   // verwijder de '?' — API garandeert het veld nu
 ```
 
-### Categorieënpagina (`app/categories/[categoryId]/page.tsx`)
+### 2. `app/config/teamRounds.ts` — verwijderen
 
-Eén Start-knop per ronde, met een modus-badge (groen = Individueel, blauw = Team):
-
-```
-┌─────────────────────────────────────────┐
-│  Ronde 1 — Aardrijkskunde  [Individueel]│
-│                             [Start]     │
-└─────────────────────────────────────────┘
-```
-
-### Admin (`app/admin/components/RoundList.tsx`)
-
-Een dropdown bij het aanmaken en bewerken van rondes:
-
-```
-Speelmodus:  [Individueel ▼]   (opties: Individueel / Team)
-```
+Het bestand kan worden verwijderd. Verwijder tegelijk de imports en fallback-checks in:
+- `app/quiz/round/[roundId]/page.tsx`: `TEAM_ROUND_IDS.has(round.id)` verwijderen
+- `app/categories/[categoryId]/page.tsx`: `TEAM_ROUND_IDS.has(round.id)` verwijderen
+- `app/admin/components/RoundList.tsx`: `TEAM_ROUND_IDS` import verwijderen
 
 ---
 
-## Fase 2 — Score-opslag voor individuele modus (optioneel)
+## Volgorde van implementatie (backend)
 
-Op dit moment worden scores alleen lokaal in de browser bijgehouden. Als je scores wilt bewaren:
-
-**Nieuw API-endpoint**
-
-```
-POST   /api/Scores          { roundId, playerName, score, totalQuestions }
-GET    /api/Scores?roundId=N
-GET    /api/Scores/leaderboard?categoryId=N
-```
-
-**Nieuwe entiteit**
-
-```csharp
-public class Score {
-  public int Id { get; set; }
-  public int RoundId { get; set; }
-  public string PlayerName { get; set; }
-  public int Points { get; set; }
-  public int TotalQuestions { get; set; }
-  public DateTime PlayedAt { get; set; }
-}
-```
-
-Alleen relevant voor `playMode === 'Individual'` rondes.
-
----
-
-## Samenvatting prioriteiten
-
-| Prioriteit | Wijziging | Reden |
-|---|---|---|
-| **Hoog** | `playMode` kolom op Rounds | Kernwijziging — routing en admin werken hier op |
-| **Middel** | Score-opslag voor Individual | Geeft spelers historiek en leaderboard |
+| Stap | Actie |
+|---|---|
+| 1 | `play_mode` kolom + migratie toevoegen |
+| 2 | Round entiteit bijwerken |
+| 3 | `RoundResponse` / `RoundDto` bijwerken |
+| 4 | `CreateRoundRequest` en `UpdateRoundRequest` bijwerken |
+| 5 | Controllers updaten (alle vier round-endpoints) |
+| 6 | Frontend: `playMode?` → `playMode` in `RoundResponse` |
+| 7 | Frontend: `app/config/teamRounds.ts` verwijderen + imports opruimen |
 
 ---
 
@@ -141,16 +136,4 @@ Alleen relevant voor `playMode === 'Individual'` rondes.
 - **Categories** — geen wijzigingen nodig
 - **Media-endpoints** — werken al voor beide modi
 - **Timer** — volledig client-side, geen API-impact
-- **PhotoRound / PassportRound** — roundType-routing blijft ongewijzigd; `playMode` werkt er ook op
-
----
-
-## Volgorde van implementatie
-
-1. Backend: voeg `play_mode` kolom + migratie toe
-2. Backend: update DTO's en controllers (GET/POST/PUT)
-3. Frontend `types.ts`: `PlayMode` type + `playMode` veld op beide interfaces *(al gedaan)*
-4. Frontend Admin `RoundList.tsx`: speelmodus-dropdown *(al gedaan)*
-5. Frontend categorieënpagina: modus-badge *(al gedaan)*
-6. Frontend rondenspagina: branch op `round.playMode` *(al gedaan)*
-7. (Later) Backend: `POST /api/Scores` + frontend eindscherm-formulier
+- **PhotoRound / PassportRound** — eigen engines, worden niet beïnvloed door `playMode`

@@ -4,6 +4,7 @@ import QuizEngine from '../../../components/Quiz/QuizEngine'
 import TeamQuizEngine from '../../../components/Quiz/TeamQuizEngine'
 import PhotoRoundEngine from '../../../components/Quiz/PhotoRoundEngine'
 import PassportRoundEngine from '../../../components/Quiz/PassportRoundEngine'
+import { TEAM_ROUND_IDS } from '../../../config/teamRounds'
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
 
@@ -57,7 +58,7 @@ export default async function QuizRoundPage({
     )
   }
 
-  if (round.playMode === 'Team') {
+  if (round.playMode === 'Team' || TEAM_ROUND_IDS.has(round.id)) {
     return (
       <div className="min-h-screen py-10 px-6">
         <div className="max-w-4xl mx-auto mb-6">

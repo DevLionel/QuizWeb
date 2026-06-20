@@ -46,9 +46,10 @@ interface Props {
   mediaType: string | null;
   mediaUrl: string | null;
   onVideoEnded?: () => void;
+  autoPlay?: boolean;
 }
 
-export default function MediaRenderer({ mediaType, mediaUrl, onVideoEnded }: Props) {
+export default function MediaRenderer({ mediaType, mediaUrl, onVideoEnded, autoPlay = true }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
   const playerRef = useRef<any>(null);
 
@@ -66,7 +67,7 @@ export default function MediaRenderer({ mediaType, mediaUrl, onVideoEnded }: Pro
         videoId,
         width: "100%",
         height: "100%",
-        playerVars: { autoplay: 1, rel: 0, modestbranding: 1 },
+        playerVars: { autoplay: autoPlay ? 1 : 0, rel: 0, modestbranding: 1 },
         events: {
           onStateChange: (e: { data: number }) => {
             if (e.data === 0) onVideoEnded?.(); // 0 = YT.PlayerState.ENDED
@@ -111,7 +112,7 @@ export default function MediaRenderer({ mediaType, mediaUrl, onVideoEnded }: Pro
     if (isAudio) {
       return (
         <div className="w-full mb-4">
-          <audio controls autoPlay onEnded={onVideoEnded} className="w-full">
+          <audio controls autoPlay={autoPlay} onEnded={onVideoEnded} className="w-full">
             <source src={mediaUrl} />
           </audio>
         </div>
@@ -120,7 +121,7 @@ export default function MediaRenderer({ mediaType, mediaUrl, onVideoEnded }: Pro
 
     return (
       <div className="w-full aspect-video rounded-xl overflow-hidden mb-4">
-        <video controls autoPlay onEnded={onVideoEnded} className="w-full h-full">
+        <video controls autoPlay={autoPlay} onEnded={onVideoEnded} className="w-full h-full">
           <source src={mediaUrl} type={mimeType} />
           Je browser ondersteunt geen video.
         </video>

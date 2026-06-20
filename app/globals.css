@@ -292,3 +292,14 @@ h1, h2, h3, h4, h5, h6 {
   background-color: #ffffff;
   color: #101519;
 }
+
+/* ── Q&A slide-in animation ──────────────────────────────────── */
+@keyframes slide-in-up {
+  from { opacity: 0; transform: translateY(28px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.slide-in-up {
+  animation: slide-in-up 3s ease-out both;
+  animation-delay: var(--slide-delay, 0ms);
+}

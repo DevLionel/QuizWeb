@@ -3,6 +3,7 @@ import { useState, useTransition } from 'react'
 import Link from 'next/link'
 import { createRound, updateRound, deleteRound, findOrCreateSubject } from '../actions'
 import type { RoundResponse, CreateRoundPayload, RoundType, PlayMode, SubjectResponse } from '../../lib/types'
+import { TEAM_ROUND_IDS } from '../../config/teamRounds'
 
 const ROUND_TYPES: { value: RoundType; label: string }[] = [
   { value: 'QuestionRound', label: 'Vragenronde' },
@@ -43,7 +44,7 @@ export default function RoundList({
       subjectInput: round.subjectName ?? '',
       displayOrder: round.displayOrder,
       roundType: round.roundType,
-      playMode: round.playMode,
+      playMode: round.playMode ?? 'Individual',
       categoryId,
     })
   }
@@ -258,11 +259,11 @@ export default function RoundList({
                       <span className="font-semibold dark:text-gray-100">{round.name}</span>
                       <span className="text-xs text-gray-400 ml-2 font-mono">{round.roundType}</span>
                       <span className={`text-xs ml-2 px-1.5 py-0.5 rounded font-semibold ${
-                        round.playMode === 'Team'
+                        TEAM_ROUND_IDS.has(round.id)
                           ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300'
                           : 'bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-300'
                       }`}>
-                        {round.playMode === 'Team' ? 'Team' : 'Individueel'}
+                        {TEAM_ROUND_IDS.has(round.id) ? 'Team' : 'Individueel'}
                       </span>
                       {round.subjectName && (
                         <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5">{round.subjectName}</p>

@@ -1,5 +1,6 @@
 import { getCategoryById } from '../../services/categoryService'
 import { getRoundsForCategory } from '../../services/roundService'
+import { TEAM_ROUND_IDS } from '../../config/teamRounds'
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
 
@@ -51,11 +52,11 @@ export default async function CategoryPage({
                 </div>
                 <div className="flex flex-col items-end gap-2">
                   <span className={`text-xs font-semibold px-2.5 py-1 rounded-full ${
-                    round.playMode === 'Team'
+                    (round.playMode === 'Team' || TEAM_ROUND_IDS.has(round.id))
                       ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300'
                       : 'bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-300'
                   }`}>
-                    {round.playMode === 'Team' ? 'Team' : 'Individueel'}
+                    {(round.playMode === 'Team' || TEAM_ROUND_IDS.has(round.id)) ? 'Team' : 'Individueel'}
                   </span>
                   <Link
                     href={`/quiz/round/${round.id}`}
